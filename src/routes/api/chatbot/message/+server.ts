@@ -17,6 +17,8 @@ import {
 	updateSessionContext
 } from '$lib/services/sessionService.js';
 import { nanoid } from 'nanoid';
+import { bedrockService, type BedrockMessage } from '$lib/server/services/bedrockService';
+import { INTENT_DETECTION_PROMPT, RESPONSE_GENERATION_PROMPT } from '$lib/server/systemPrompts';
 
 /**
  * Validate request body for message endpoint
@@ -38,73 +40,55 @@ function validateMessageRequest(body: unknown): ChatbotMessageRequest | null {
 /**
  * Simple intent recognition (placeholder for AWS Comprehend integration)
  */
-function recognizeIntent(message: string): {
-	intent: string;
-	confidence: number;
-	slots: Record<string, unknown>;
-} {
-	const lowerMessage = message.toLowerCase();
-
-	// Simple keyword-based intent recognition for POC
-	if (
-		lowerMessage.includes('drug') ||
-		lowerMessage.includes('medication') ||
-		lowerMessage.includes('prescription')
-	) {
-		return { intent: 'GetDrugPrice', confidence: 0.85, slots: {} };
+// Bedrock-powered intent detection
+async function detectIntentWithBedrock(
+	userMessage: string
+): Promise<{ intent: string; confidence: number; slots?: Record<string, unknown> } | null> {
+	const bedrockResult = await bedrockService.generateResponse({
+		systemPrompt: INTENT_DETECTION_PROMPT,
+		previousMessages: [],
+		userInput: userMessage
+	});
+	console.log('[DEBUG] Raw Bedrock intent output:', bedrockResult.content);
+	try {
+		interface ParsedIntent {
+			intent?: string;
+			confidence?: number;
+			slots?: Record<string, unknown>;
+		}
+		let parsed: ParsedIntent | null = null;
+		// Try to parse as array first (Claude 3 format)
+		if (typeof bedrockResult.content === 'string' && bedrockResult.content.trim().startsWith('[')) {
+			const arr: Array<{ type: string; text: string }> = JSON.parse(bedrockResult.content);
+			if (Array.isArray(arr) && arr.length > 0 && typeof arr[0].text === 'string') {
+				parsed = JSON.parse(arr[0].text) as ParsedIntent;
+			}
+		} else {
+			parsed = JSON.parse(bedrockResult.content) as ParsedIntent;
+		}
+		console.log('[DEBUG] Parsed intent JSON:', parsed);
+		if (parsed && typeof parsed.intent === 'string' && typeof parsed.confidence === 'number') {
+			return parsed as { intent: string; confidence: number; slots?: Record<string, unknown> };
+		}
+		console.warn('[WARN] Parsed object missing required fields:', parsed);
+	} catch (err) {
+		console.error('Failed to parse Bedrock intent JSON:', err, bedrockResult.content);
 	}
-
-	if (
-		lowerMessage.includes('doctor') ||
-		lowerMessage.includes('provider') ||
-		lowerMessage.includes('physician')
-	) {
-		return { intent: 'FindProvider', confidence: 0.8, slots: {} };
-	}
-
-	if (
-		lowerMessage.includes('plan') ||
-		lowerMessage.includes('coverage') ||
-		lowerMessage.includes('benefit')
-	) {
-		return { intent: 'GetPlanInfo', confidence: 0.75, slots: {} };
-	}
-
-	if (
-		lowerMessage.includes('hello') ||
-		lowerMessage.includes('hi') ||
-		lowerMessage.includes('help')
-	) {
-		return { intent: 'Welcome', confidence: 0.9, slots: {} };
-	}
-
-	return { intent: 'Unknown', confidence: 0.5, slots: {} };
+	return null;
 }
 
-/**
- * Generate bot response based on intent
- */
-function generateBotResponse(
-	intent: string,
-	userMessage: string,
-	userPayload: import('$lib/types/authTypes.js').AuthJwtPayload
-): string {
-	switch (intent) {
-		case 'GetDrugPrice':
-			return `I can help you check drug costs and coverage under your ${userPayload.plan_type}. To provide accurate information, I'll need to know:\n\n• The specific medication name\n• The dosage and quantity\n• Your preferred pharmacy\n\nCould you please provide the name of the medication you're asking about?`;
-
-		case 'FindProvider':
-			return `I can help you find providers in your network. Your current primary care physician is ${userPayload.primary_care_physician || 'not listed'}.\n\nWhat type of provider are you looking for?\n• Primary care physician\n• Specialist (please specify)\n• Hospital or medical facility\n\nAlso, would you like providers near your current location in ${userPayload.city}, ${userPayload.state}?`;
-
-		case 'GetPlanInfo':
-			return `I can explain your ${userPayload.plan_type} coverage details. Here are some key aspects I can help with:\n\n• Covered services and benefits\n• Copayments and deductibles\n• Network providers\n• Prescription drug coverage\n• Prior authorization requirements\n\nWhat specific aspect of your plan would you like to know about?`;
-
-		case 'Welcome':
-			return `Hello ${userPayload.first_name}! I'm here to help with your Medicare questions. What would you like to know about your ${userPayload.plan_type} coverage?`;
-
-		default:
-			return `I'd like to help you with that. Could you please be more specific about what you need? I can assist with:\n\n• Drug costs and coverage\n• Finding providers\n• Understanding your plan benefits\n• Coverage questions\n\nWhat would you like to know more about?`;
-	}
+// Bedrock-powered response generation
+async function generateChatbotReply(
+	systemPrompt: string,
+	history: BedrockMessage[],
+	userInput: string
+): Promise<string> {
+	const bedrockResult = await bedrockService.generateResponse({
+		systemPrompt,
+		previousMessages: history,
+		userInput
+	});
+	return bedrockResult.content;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -167,17 +151,65 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Add user message to session
 		addMessageToSession(messageRequest.session_id, userMessage);
 
-		// Recognize intent
-		const { intent, confidence, slots } = recognizeIntent(messageRequest.message);
+		// Detect intent using Bedrock
+		const intentResult = await detectIntentWithBedrock(messageRequest.message);
+		if (!intentResult) {
+			const errorResponse: ApiError = {
+				success: false,
+				error: 'Could not determine intent from message',
+				code: 'INTENT_ERROR'
+			};
+			return json(errorResponse, { status: 422 });
+		}
+		const { intent, confidence, slots } = intentResult;
 
-		// Generate bot response
-		const botResponseContent = generateBotResponse(intent, messageRequest.message, userPayload);
+		// Prepare chat history for Bedrock response generation
+		const chatHistory: BedrockMessage[] = session.messages
+			.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
+			.map((msg) => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
+
+		const botResponseContent = await generateChatbotReply(
+			RESPONSE_GENERATION_PROMPT,
+			chatHistory,
+			messageRequest.message
+		);
+
+		// Defensive: ensure only string is used for content
+		type ClaudeTextObj = { type: string; text: string };
+		let assistantText = botResponseContent;
+		// If it's a stringified array, parse and extract .text
+		if (typeof assistantText === 'string' && assistantText.trim().startsWith('[')) {
+			try {
+				const arr = JSON.parse(assistantText) as ClaudeTextObj[];
+				if (Array.isArray(arr) && arr.length > 0 && typeof arr[0].text === 'string') {
+					assistantText = arr[0].text;
+				}
+			} catch {
+				// ignore parse error, fallback below
+			}
+		} else if (
+			Array.isArray(assistantText) &&
+			assistantText.length > 0 &&
+			typeof (assistantText as ClaudeTextObj[])[0].text === 'string'
+		) {
+			assistantText = (assistantText as ClaudeTextObj[])[0].text;
+		} else if (
+			typeof assistantText === 'object' &&
+			assistantText !== null &&
+			'text' in assistantText &&
+			typeof (assistantText as ClaudeTextObj).text === 'string'
+		) {
+			assistantText = (assistantText as ClaudeTextObj).text;
+		}
+		if (typeof assistantText !== 'string') {
+			assistantText = '[Error: Unexpected response format from Claude 3]';
+		}
 
 		// Create bot response message
 		const processingTime = Date.now() - startTime;
 		const botMessage: ChatMessage = {
 			id: nanoid(12),
-			content: botResponseContent,
+			content: assistantText,
 			role: 'assistant',
 			timestamp: new Date(),
 			metadata: {
