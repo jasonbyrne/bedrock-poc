@@ -100,6 +100,16 @@ dist
 # vuepress build output
 .vuepress/dist
 
+# SvelteKit
+.svelte-kit
+/build
+/package
+.env.*.local
+.vercel
+.netlify
+# Optional: Only if using Svelte 5 runes preview
+/.svelte
+
 # vuepress v2.x temp and cache directory
 .temp
 .cache

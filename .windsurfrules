@@ -1,0 +1,103 @@
+# WindSurf AI Rules for Medicare Chatbot POC
+
+## 📚 MANDATORY DOCUMENTATION REVIEW
+
+**BEFORE ANY CODE CHANGES**: Read and strictly follow these documents:
+
+1. `docs/CODE-CONVENTIONS.md` - Svelte 5 syntax, TypeScript rules, naming conventions
+2. `docs/PROJECT-PLAN.md` - Project architecture, goals, and technical requirements
+3. `.env.example` - Environment variable structure and naming
+
+## 🚨 CRITICAL: SVELTE 5 ONLY PROJECT
+
+**This project uses Svelte 5 - NOT Svelte 4!**
+
+### ❌ FORBIDDEN (Svelte 4 syntax):
+
+```svelte
+export let title; // Old prop syntax $: doubled = count * 2; // Old reactive syntax on:click={handler}
+// Old event syntax let count = 0; // Old state syntax
+```
+
+### ✅ REQUIRED (Svelte 5 syntax):
+
+```svelte
+let {title}: Props = $props(); // New prop syntax let doubled = $derived(count * 2); // New derived
+state onclick={handler} // New event syntax let count = $state(0); // New state syntax
+```
+
+## 📋 TypeScript Requirements
+
+- **ZERO TOLERANCE** for `any` type - use proper interfaces or `unknown`
+- **ALWAYS** type function parameters and return values
+- **MANDATORY** interfaces for component props
+- Follow Result pattern for error handling
+
+## 🏗️ Architecture Rules
+
+### File Organization:
+
+- Components: `src/lib/components/` (PascalCase.svelte)
+- API Routes: `src/routes/api/` (+server.ts)
+- Types: `src/lib/types/` (camelCase.ts)
+- Services: `src/lib/services/` (camelCase.ts)
+
+### Naming Conventions:
+
+- **Classes/Interfaces/Types**: PascalCase
+- **Constants/Env Vars**: SCREAMING_SNAKE_CASE
+- **Properties/DB fields**: snake_case
+- **Client env vars**: PUBLIC\_\* prefix REQUIRED
+
+## 🎯 Project-Specific Context
+
+**Local POC Application Features:**
+
+- AWS Bedrock (Claude 3 Haiku) integration
+- AWS Medical Comprehend for NER
+- In-memory conversation state management
+- Mock backend data simulation
+- Zero hallucination tolerance
+- Intent recognition and slot filling
+
+**Tech Stack:**
+
+- Svelte 5 + SvelteKit
+- TypeScript (strict mode)
+- Vitest for testing
+- Vite for bundling
+
+## 🔧 Development Workflow
+
+1. **Reference docs first** - Check `docs/` folder
+2. **Follow patterns** - Use examples from CODE-CONVENTIONS.md
+3. **Type everything** - No `any` types allowed
+4. **Test changes** - Run `npm run test` and `npm run dev`
+5. **Validate syntax** - Ensure Svelte 5 compliance
+
+## ⚡ Quick Reference Commands
+
+```bash
+npm run dev      # Start dev server
+npm run test     # Run tests
+npm run build    # Production build
+npm run lint     # Check code quality
+```
+
+## 🎨 Code Style Enforcement
+
+- Use `.prettierrc` configuration
+- Follow ESLint rules in `eslint.config.js`
+- Maintain consistent import/export patterns
+- Document all public APIs with JSDoc
+
+## 🚫 Anti-Patterns to Avoid
+
+- Svelte 4 syntax usage
+- `any` type usage
+- Missing TypeScript interfaces
+- Incorrect environment variable naming
+- Client-side secrets (non-PUBLIC\_ env vars)
+- Direct AWS SDK usage in browser code
+
+**Remember: This is a learning POC focused on AWS Bedrock integration with strict code quality standards. Every line should demonstrate best practices!**

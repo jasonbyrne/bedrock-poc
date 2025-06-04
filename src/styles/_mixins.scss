@@ -1,0 +1,169 @@
+@use 'sass:map';
+@use 'variables' as *;
+
+// Helper function to get colors from the map
+@function color($name, $shade: null) {
+	@if $shade {
+		@return map.get($colors, $name, $shade);
+	} @else {
+		@return map.get($colors, $name);
+	}
+}
+
+// Helper function to get spacing values
+@function space($size) {
+	@return map.get($spacing, $size);
+}
+
+// Helper function to get border radius
+@function radius($size) {
+	@return map.get($radius, $size);
+}
+
+// Helper function to get shadows
+@function shadow($size) {
+	@return map.get($shadows, $size);
+}
+
+// Helper function to get font sizes
+@function font-size($size) {
+	@return map.get($font-sizes, $size);
+}
+
+// Helper function to get font weights
+@function font-weight($weight) {
+	@return map.get($font-weights, $weight);
+}
+
+// Helper function to get line heights
+@function line-height($height) {
+	@return map.get($line-heights, $height);
+}
+
+// Helper function to get transitions
+@function transition($speed) {
+	@return map.get($transitions, $speed);
+}
+
+// Mixins for common patterns
+@mixin flex-center {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+@mixin flex-between {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+@mixin button-base {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	border: none;
+	border-radius: radius(lg);
+	font-weight: font-weight(medium);
+	transition: all transition(fast);
+	cursor: pointer;
+	text-decoration: none;
+
+	&:focus {
+		outline: none;
+		box-shadow: 0 0 0 3px color(primary, 100);
+	}
+
+	&:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+	}
+}
+
+@mixin button-primary {
+	@include button-base;
+	background-color: color(primary, 600);
+	color: color(white);
+
+	&:hover:not(:disabled) {
+		background-color: color(primary, 700);
+	}
+}
+
+@mixin button-secondary {
+	@include button-base;
+	background-color: color(gray, 200);
+	color: color(gray, 900);
+
+	&:hover:not(:disabled) {
+		background-color: color(gray, 300);
+	}
+}
+
+@mixin button-ghost {
+	@include button-base;
+	background-color: transparent;
+	color: color(gray, 700);
+
+	&:hover:not(:disabled) {
+		background-color: color(gray, 100);
+	}
+}
+
+@mixin input-base {
+	display: block;
+	width: 100%;
+	padding: space(3) space(4);
+	font-size: font-size(base);
+	line-height: line-height(normal);
+	color: color(gray, 900);
+	background-color: color(white);
+	border: 1px solid color(gray, 300);
+	border-radius: radius(lg);
+	transition:
+		border-color transition(fast),
+		box-shadow transition(fast);
+
+	&:focus {
+		outline: none;
+		border-color: color(primary, 600);
+		box-shadow: 0 0 0 3px color(primary, 100);
+	}
+
+	&::placeholder {
+		color: color(gray, 400);
+	}
+
+	&:disabled {
+		background-color: color(gray, 50);
+		color: color(gray, 500);
+		cursor: not-allowed;
+	}
+}
+
+@mixin card {
+	background-color: color(white);
+	border-radius: radius(xl);
+	box-shadow: shadow(lg);
+	padding: space(6);
+}
+
+@mixin gradient-bg {
+	background: linear-gradient(135deg, color(blue, 50) 0%, color(primary, 100) 100%);
+}
+
+// Responsive breakpoints
+$breakpoints: (
+	sm: 640px,
+	md: 768px,
+	lg: 1024px,
+	xl: 1280px
+);
+
+@mixin responsive($breakpoint) {
+	@if map.has-key($breakpoints, $breakpoint) {
+		@media (min-width: map.get($breakpoints, $breakpoint)) {
+			@content;
+		}
+	}
+}

@@ -1,0 +1,150 @@
+<script lang="ts">
+	/**
+	 * Chat page with authentication protection
+	 */
+
+	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
+	import { browser } from '$app/environment';
+	import Header from '$lib/components/ui/Header.svelte';
+	import ChatInterface from '$lib/components/chat/ChatInterface.svelte';
+	import { authState, isAuthenticated, initializeAuth } from '$lib/stores/authStore.js';
+
+	// Authentication check
+	onMount(() => {
+		// Initialize auth store if in browser
+		if (browser) {
+			initializeAuth();
+
+			// Check authentication after a brief delay to allow store initialization
+			setTimeout(() => {
+				if (!isAuthenticated()) {
+					goto('/');
+				}
+			}, 100);
+		}
+	});
+
+	// Reactive check for authentication state changes
+	$effect(() => {
+		if (browser && $authState === 'unauthenticated') {
+			goto('/');
+		}
+	});
+</script>
+
+<svelte:head>
+	<title>Medicare Chatbot - Chat Interface</title>
+	<meta name="description" content="Medicare Chatbot conversation interface" />
+</svelte:head>
+
+{#if $authState === 'loading'}
+	<!-- Loading state -->
+	<div class="page-loading">
+		<div class="loading-content">
+			<div class="loading-spinner"></div>
+			<p class="loading-text">Loading...</p>
+		</div>
+	</div>
+{:else if $authState === 'authenticated'}
+	<!-- Authenticated chat interface -->
+	<div class="chat-page">
+		<Header title="Medicare Chatbot POC" />
+
+		<main class="chat-main">
+			<ChatInterface />
+		</main>
+	</div>
+{:else}
+	<!-- Fallback for unauthenticated state -->
+	<div class="access-denied">
+		<div class="denied-content">
+			<h2 class="denied-title">Access Denied</h2>
+			<p class="denied-text">Please log in to access the chat interface.</p>
+			<a href="/" class="denied-link">Return to Login</a>
+		</div>
+	</div>
+{/if}
+
+<style lang="scss">
+	@use '../../styles/mixins' as m;
+
+	.page-loading {
+		min-height: 100vh;
+		@include m.flex-center;
+		background-color: m.color(gray, 50);
+	}
+
+	.loading-content {
+		text-align: center;
+	}
+
+	.loading-spinner {
+		animation: spin 1s linear infinite;
+		border-radius: m.radius(full);
+		height: 3rem;
+		width: 3rem;
+		border: 2px solid transparent;
+		border-bottom-color: m.color(primary, 600);
+		margin: 0 auto;
+	}
+
+	.loading-text {
+		margin-top: m.space(4);
+		color: m.color(gray, 600);
+	}
+
+	.chat-page {
+		min-height: 100vh;
+		display: flex;
+		flex-direction: column;
+		background-color: m.color(gray, 50);
+	}
+
+	.chat-main {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+	}
+
+	.access-denied {
+		min-height: 100vh;
+		@include m.flex-center;
+		background-color: m.color(gray, 50);
+	}
+
+	.denied-content {
+		text-align: center;
+	}
+
+	.denied-title {
+		font-size: m.font-size(2xl);
+		font-weight: m.font-weight(bold);
+		color: m.color(gray, 900);
+		margin-bottom: m.space(4);
+	}
+
+	.denied-text {
+		color: m.color(gray, 600);
+		margin-bottom: m.space(4);
+	}
+
+	.denied-link {
+		color: m.color(primary, 600);
+		text-decoration: underline;
+		transition: color m.transition(fast);
+
+		&:hover {
+			color: m.color(primary, 800);
+		}
+	}
+
+	@keyframes spin {
+		from {
+			transform: rotate(0deg);
+		}
+		to {
+			transform: rotate(360deg);
+		}
+	}
+</style>

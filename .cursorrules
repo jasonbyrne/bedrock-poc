@@ -1,0 +1,65 @@
+# Cursor AI Rules for Medicare Chatbot POC
+
+## 📋 Required Reading - ALWAYS REFERENCE THESE DOCS FIRST
+
+Before making any code changes or suggestions, you MUST read and follow:
+
+1. **CODE CONVENTIONS**: `docs/CODE-CONVENTIONS.md` - Contains critical Svelte 5 syntax, TypeScript standards, and naming conventions
+2. **PROJECT PLAN**: `docs/PROJECT-PLAN.md` - Outlines the project goals, scope, and architecture
+
+## 🚨 CRITICAL REQUIREMENTS
+
+### Svelte 5 ONLY
+
+- This project uses **Svelte 5**, NOT Svelte 4
+- NEVER use deprecated Svelte 4 syntax (`export let`, `$:`, `on:click`)
+- ALWAYS use Svelte 5 runes: `$state()`, `$derived()`, `$effect()`, `$props()`
+- Reference the Svelte 5 examples in `docs/CODE-CONVENTIONS.md`
+
+### TypeScript Standards
+
+- NEVER use `any` type - use proper types or `unknown`
+- ALWAYS type function parameters and return values
+- Follow the naming conventions in `docs/CODE-CONVENTIONS.md`
+
+### Environment Variables
+
+- Server-side vars: Normal names (e.g., `BEDROCK_REGION`)
+- Client-side vars: MUST start with `PUBLIC_` (e.g., `PUBLIC_APP_NAME`)
+- Reference `.env.example` for all available variables
+
+## 🎯 Project Context
+
+This is a **local POC application** for testing AWS Bedrock (Claude 3 Haiku) and Medical Comprehend integration for a Medicare chatbot. The focus is on:
+
+- Intent recognition and slot filling
+- Conversation management with in-memory storage
+- Mock data integration
+- Strict adherence to provided data (zero hallucination tolerance)
+
+## 📁 File Structure Rules
+
+Follow the structure defined in `docs/CODE-CONVENTIONS.md`:
+
+- Components in `src/lib/components/` (PascalCase)
+- API routes in `src/routes/api/` (+server.ts files)
+- Types in `src/lib/types/` (camelCase files)
+- Services in `src/lib/services/` (camelCase files)
+
+## 🔧 When Making Changes
+
+1. Always check existing documentation first
+2. Follow the exact patterns shown in `docs/CODE-CONVENTIONS.md`
+3. Use TypeScript extensively with proper typing
+4. Test changes with `npm run test` and `npm run dev`
+5. Ensure code follows the naming conventions
+
+## ⚠️ Common Pitfalls to Avoid
+
+- Using Svelte 4 syntax instead of Svelte 5 runes
+- Using `any` type in TypeScript
+- Incorrect naming conventions (check the table in docs)
+- Missing TypeScript interfaces for component props
+- Not prefixing client-side env vars with `PUBLIC_`
+
+Remember: When in doubt, reference the documentation in the `docs/` folder!
