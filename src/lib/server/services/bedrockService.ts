@@ -81,7 +81,6 @@ export class BedrockService {
 		}
 		try {
 			const messages = this.buildMessages(systemPrompt, previousMessages, userInput);
-			console.log('Messages API payload:', JSON.stringify(messages, null, 2));
 			const params: InvokeModelCommandInput = {
 				modelId: this.modelId,
 				contentType: 'application/json',
@@ -90,7 +89,8 @@ export class BedrockService {
 					anthropic_version: 'bedrock-2023-05-31',
 					messages,
 					max_tokens: 1024,
-					temperature: 0.0
+					system: systemPrompt,
+					temperature: 0.1
 				})
 			};
 			const command = new InvokeModelCommand(params);
@@ -144,7 +144,6 @@ export class BedrockService {
 		userInput: string
 	): Array<{ role: 'user' | 'assistant'; content: string }> {
 		const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-		const hasHistory = previousMessages.length > 0;
 
 		// Add previous messages as-is, preserving strict alternation
 		for (const msg of previousMessages) {
@@ -153,25 +152,12 @@ export class BedrockService {
 			}
 		}
 
-		// Determine if this is the first message in the conversation
-		if (!hasHistory && systemPrompt && systemPrompt.trim()) {
-			// Only prepend system prompt to very first user message
-			messages.push({
-				role: 'user',
-				content: `${systemPrompt.trim()}
-
-${userInput}`
-			});
+		// Always add the new user message as-is, never prepend system prompt
+		if (messages.length === 0 || messages[messages.length - 1].role === 'assistant') {
+			messages.push({ role: 'user', content: userInput });
 		} else {
-			// Only add a new user message if the last message was 'assistant' or there is alternation
-			if (messages.length === 0 || messages[messages.length - 1].role === 'assistant') {
-				messages.push({ role: 'user', content: userInput });
-			} else {
-				// If the last message was 'user', do NOT add another user message (should not happen)
-				console.warn(
-					'[WARN] Attempted to add two user messages in a row to Claude 3 messages API.'
-				);
-			}
+			// If the last message was 'user', do NOT add another user message (should not happen)
+			console.warn('[WARN] Attempted to add two user messages in a row to Claude 3 messages API.');
 		}
 		return messages;
 	}

@@ -7,18 +7,24 @@
  * Intent Detection: Instructs the LLM to extract intent, slots, and confidence from user input.
  * Response must be strict JSON: { intent: string, confidence: number, slots?: object }
  */
-export const INTENT_DETECTION_PROMPT = `
-You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified JSON object with these fields:
+import { INTENTS } from './intents';
+
+function buildIntentList(): string {
+	const intentLines = INTENTS.map(
+		(intent) =>
+			`- ${intent.name}: ${intent.description}${intent.slots.length ? ` (slots: ${intent.slots.join(', ')})` : ''}`
+	);
+	return intentLines.join('\n');
+}
+
+function buildIntentDetectionPrompt(): string {
+	return `You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified JSON object with these fields:
 - intent (string): one of the supported intents below
 - confidence (number): your confidence (0-1)
 - slots (object, optional): any key-value slots extracted from the message (omit this property if there are no slots)
 
 Supported intents (choose the closest match):
-- GetDrugPrice: User asks about drug/medication costs, coverage, or formulary
-- FindProvider: User wants to find a doctor, provider, or facility
-- GetPlanInfo: User asks about plan benefits, coverage details, or eligibility
-- Welcome: User greets, says hello, or asks for help
-- Unknown: Use this if the intent does not match the above or is unclear/unsupported
+${buildIntentList()}
 
 Respond ONLY with a valid, minified JSON object. Do not include any explanation, extra text, or formatting.
 
@@ -26,9 +32,10 @@ Example (with slots):
 {"intent":"GetDrugPrice","confidence":0.92,"slots":{"drug_name":"atorvastatin"}}
 
 Example (no slots):
-{"intent":"Welcome","confidence":0.99}
-`;
+{"intent":"Welcome","confidence":0.99}`;
+}
 
+export const INTENT_DETECTION_PROMPT = buildIntentDetectionPrompt();
 
 /**
  * Response Generation: Instructs the LLM to reply as a friendly, knowledgeable healthcare assistant.

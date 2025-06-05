@@ -19,6 +19,11 @@ import {
 import { nanoid } from 'nanoid';
 import { bedrockService, type BedrockMessage } from '$lib/server/services/bedrockService';
 import { INTENT_DETECTION_PROMPT, RESPONSE_GENERATION_PROMPT } from '$lib/server/systemPrompts';
+import { getIntentByName } from '$lib/server/intents';
+import { getWelcomeMessage } from '../canned-messages';
+import type { ChatSession } from '$lib/types/chatTypes.js';
+
+const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
 
 /**
  * Validate request body for message endpoint
@@ -75,6 +80,46 @@ async function detectIntentWithBedrock(
 		console.error('Failed to parse Bedrock intent JSON:', err, bedrockResult.content);
 	}
 	return null;
+}
+
+function generateChatMessage(params: {
+	content: string;
+	intent: string;
+	slots?: Record<string, unknown>;
+	confidence: number;
+	processingTime: number;
+}): ChatMessage {
+	return {
+		id: nanoid(12),
+		content: params.content,
+		role: 'assistant',
+		timestamp: new Date(),
+		metadata: {
+			intent: params.intent,
+			slots: params.slots,
+			confidence_score: params.confidence,
+			processing_time_ms: params.processingTime
+		}
+	};
+}
+
+function prepareResponse(params: {
+	session: ChatSession;
+	content: string;
+	intent: string;
+	slots?: Record<string, unknown>;
+	confidence: number;
+	processingTime: number;
+}): Response {
+	const message = generateChatMessage(params);
+	addMessageToSession(params.session.session_id, message);
+	updateSessionContext(params.session.session_id, params.intent, params.slots);
+	const response: ChatbotMessageResponse = {
+		success: true,
+		message,
+		session_updated: true
+	};
+	return json(response, { status: 200 });
 }
 
 // Bedrock-powered response generation
@@ -163,6 +208,51 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 		const { intent, confidence, slots } = intentResult;
 
+		// Get intent details
+		const intentDetails = getIntentByName(intent);
+		if (!intentDetails) {
+			const errorResponse: ApiError = {
+				success: false,
+				error: 'Intent not found',
+				code: 'INTENT_ERROR'
+			};
+			return json(errorResponse, { status: 422 });
+		}
+
+		// Check confidence threshold
+		if (confidence < (intentDetails.confidenceRequired ?? DEFAULT_CONFIDENCE_THRESHOLD)) {
+			return prepareResponse({
+				session,
+				content: 'I am not sure what you mean. Could you please rephrase?',
+				intent: 'Unknown',
+				confidence,
+				slots,
+				processingTime: Date.now() - startTime
+			});
+		}
+
+		// Intent routing
+		switch (intentDetails.name) {
+			case 'Unknown':
+				return prepareResponse({
+					session,
+					content: 'I am not sure what you mean. Could you please rephrase?',
+					intent: 'Unknown',
+					confidence,
+					slots,
+					processingTime: Date.now() - startTime
+				});
+			case 'Welcome':
+				return prepareResponse({
+					session,
+					content: getWelcomeMessage(userPayload),
+					intent: 'Welcome',
+					confidence,
+					slots,
+					processingTime: Date.now() - startTime
+				});
+		}
+
 		// Prepare chat history for Bedrock response generation
 		const chatHistory: BedrockMessage[] = session.messages
 			.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
@@ -206,31 +296,14 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Create bot response message
-		const processingTime = Date.now() - startTime;
-		const botMessage: ChatMessage = {
-			id: nanoid(12),
+		return prepareResponse({
+			session,
 			content: assistantText,
-			role: 'assistant',
-			timestamp: new Date(),
-			metadata: {
-				intent,
-				slots,
-				confidence_score: confidence,
-				processing_time_ms: processingTime
-			}
-		};
-
-		// Add bot message to session and update context
-		addMessageToSession(messageRequest.session_id, botMessage);
-		updateSessionContext(messageRequest.session_id, intent, slots);
-
-		const response: ChatbotMessageResponse = {
-			success: true,
-			message: botMessage,
-			session_updated: true
-		};
-
-		return json(response);
+			intent,
+			slots,
+			confidence,
+			processingTime: Date.now() - startTime
+		});
 	} catch (error) {
 		console.error('Message endpoint error:', error);
 

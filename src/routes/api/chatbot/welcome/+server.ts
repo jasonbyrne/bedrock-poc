@@ -8,6 +8,7 @@ import type { ChatbotWelcomeResponse, ChatMessage, ApiError } from '$lib/types/c
 import { authenticateRequest } from '$lib/services/jwtAuth.js';
 import { createSession } from '$lib/services/sessionService.js';
 import { nanoid } from 'nanoid';
+import { getWelcomeMessage } from '../canned-messages';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
@@ -26,16 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const session = createSession(userPayload.beneficiary_key);
 
 		// Generate personalized welcome message
-		const welcomeContent = `Hello ${userPayload.first_name}! I'm your Medicare assistant.
-
-I can help you with:
-• Understanding your ${userPayload.plan_type} coverage
-• Finding providers and specialists
-• Checking drug costs and coverage
-• Explaining benefits and services
-• Prior authorization requirements
-
-What specific aspect of your Medicare coverage would you like to know about?`;
+		const welcomeContent = getWelcomeMessage(userPayload);
 
 		// Create the welcome message
 		const welcomeMessage: ChatMessage = {
