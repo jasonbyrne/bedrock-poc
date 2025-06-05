@@ -18,7 +18,9 @@ function buildIntentList(): string {
 }
 
 function buildIntentDetectionPrompt(): string {
-	return `You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified JSON object with these fields:
+	return `
+
+	You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified JSON object with these fields:
 - intent (string): one of the supported intents below
 - confidence (number): your confidence (0-1)
 - slots (object, optional): any key-value slots extracted from the message (omit this property if there are no slots)

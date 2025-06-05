@@ -10,7 +10,7 @@ import { nanoid } from 'nanoid';
 const sessions = new Map<string, ChatSession>();
 
 // Cleanup interval for expired sessions (15 minutes)
-const SESSION_TIMEOUT = 15 * 60 * 1000;
+const SESSION_TIMEOUT = 60 * 60 * 1000;
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 
 /**

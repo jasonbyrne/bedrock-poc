@@ -4,7 +4,8 @@ import type { ChatSession } from '$lib/types/chatTypes';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
 
 abstract class Controller {
-	protected abstract minConfidence: number;
+	protected minConfidence: number | null = null;
+
 	protected confidence: number;
 	protected intent: string;
 	protected slots: Record<string, unknown>;
@@ -23,10 +24,17 @@ abstract class Controller {
 		this.user = params.user;
 	}
 
-	abstract handle(): Promise<MessageReply>;
-	
-	protected isConfident(): boolean {
+	public isConfident(): boolean {
+		if (!this.minConfidence) return true;
 		return this.confidence >= this.minConfidence;
+	}
+
+	public abstract handle(): Promise<MessageReply>;
+
+	public async clarification(): Promise<MessageReply> {
+		return {
+			message: 'I am not sure what you mean. Could you please rephrase?'
+		};
 	}
 }
 

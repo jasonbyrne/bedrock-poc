@@ -26,7 +26,9 @@ export async function routeIntent(
 	const ControllerClass = intentControllerMap[intent];
 	if (ControllerClass) {
 		const controller = new ControllerClass(params);
-		const content = await controller.handle();
+		const content = controller.isConfident()
+			? await controller.handle()
+			: await controller.clarification();
 		const assistantMessage = createAssistantMessage({
 			content: content.message,
 			intent: params.intent,
