@@ -181,6 +181,34 @@ m.transition(normal)     // Transition timing
 </style>
 ```
 
+## 🏗️ Backend Architecture Patterns
+
+### Intent Controller Pattern
+
+The project uses a controller pattern for handling chatbot intents. Each intent has its own dedicated controller that handles the specific logic for that intent.
+
+#### Folder Structure
+
+```
+src/lib/server/
+├── controllers/           # Intent-specific controllers
+│   ├── WelcomeController.ts
+│   ├── GetDrugPriceController.ts
+│   ├── GetPlanInfoController.ts
+│   └── UnknownController.ts
+├── core/
+│   └── controller.ts      # Abstract Controller class
+└── router.ts             # Maps intents to controllers
+```
+
+#### Key Concepts
+
+- Each intent has a dedicated controller class
+- The router maps intent names to their corresponding controllers
+- Controllers handle intent-specific logic and responses
+
+See `docs/CONTROLLER-PATTERN.md` for more information.
+
 ## 🚀 API Endpoints
 
 ### Chatbot API

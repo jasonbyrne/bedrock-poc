@@ -138,7 +138,7 @@ This POC will be implemented as a **single, self-contained application** running
     - **Phase 1: Intent & Slot Extraction:**
       - Constructs a detailed Bedrock prompt (including the user input and the current `conversationContext`).
       - The Bedrock prompt should include a `SYSTEM` role message that explicitly defines expected JSON output for intent and slots, possible intents, and current date context for relative date parsing (e.g., "Current Date: 2025-06-05").
-      - Use `temperature=0.0`, `top_k=1`, and ` stop_sequences=["```"] ` with a JSON prefill (` "```json\n" `) to enforce JSON output.
+      - Use `temperature=0.0`, `top_k=1`, and `stop_sequences=["```"]` with a JSON prefill (`"```json\n"`) to enforce JSON output.
       - Calls AWS Bedrock (Claude 3 Haiku) for `intent` and `slots` extraction.
       - If `drugName`, `dosage`, `drugForm` are present or suspected, calls AWS Medical Comprehend to normalize these terms (e.g., `detect_entities_v2`).
       - Consolidates extracted slots:
@@ -184,6 +184,7 @@ This POC will be implemented as a **single, self-contained application** running
 - **UI Framework:** Svelte 5.
 - **Source Control:** Git (will be managed in a central repository).
 - **Code Quality:** Emphasis on clear, modular code.
+- **Intent Controller Pattern:** Implementation uses a class-based controller architecture with a router, where each controller handles the logic for a specific intent. This pattern allows for easy extension of new intents and associated logic.
 
 ---
 
