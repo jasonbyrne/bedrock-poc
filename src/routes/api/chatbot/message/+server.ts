@@ -4,26 +4,54 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type {
-	ChatbotMessageRequest,
-	ChatbotMessageResponse,
-	ChatMessage,
-	ApiError
-} from '$lib/types/chatTypes.js';
+import type { ChatbotMessageRequest, ChatMessage, ApiError } from '$lib/types/chatTypes.js';
 import { authenticateRequest } from '$lib/services/jwtAuth.js';
-import {
-	getSession,
-	addMessageToSession,
-	updateSessionContext
-} from '$lib/services/sessionService.js';
+import { addMessageToSession, getSession } from '$lib/services/sessionService.js';
 import { nanoid } from 'nanoid';
-import { bedrockService, type BedrockMessage } from '$lib/server/services/bedrockService';
-import { INTENT_DETECTION_PROMPT, RESPONSE_GENERATION_PROMPT } from '$lib/server/systemPrompts';
+import { bedrockService } from '$lib/server/services/bedrockService';
+import type { AuthJwtPayload } from '$lib/types/authTypes';
+import type { ChatSession } from '$lib/types/chatTypes';
+import { INTENT_DETECTION_PROMPT } from '$lib/server/systemPrompts';
 import { getIntentByName } from '$lib/server/intents';
-import { getWelcomeMessage } from '../canned-messages';
-import type { ChatSession } from '$lib/types/chatTypes.js';
+import type { IntentHandlerParams } from '$lib/types/intentTypes';
+import { routeIntent } from '$lib/server/router';
 
 const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
+
+function errorJson(error: string, code: string, status: number): Response {
+	return json({ success: false, error, code }, { status });
+}
+
+function requireAuth(request: Request): AuthJwtPayload | Response {
+	const userPayload = authenticateRequest(request);
+	if (!userPayload) {
+		return errorJson('Unauthorized - Invalid or missing JWT token', 'AUTH_ERROR', 401);
+	}
+	return userPayload;
+}
+
+function requireValidMessageRequest(body: unknown): ChatbotMessageRequest | Response {
+	const messageRequest = validateMessageRequest(body);
+	if (!messageRequest) {
+		return errorJson('Invalid request - session_id and message are required', 'VALIDATION_ERROR', 400);
+	}
+	return messageRequest;
+}
+
+function requireSession(session_id: string): ChatSession | Response {
+	const session = getSession(session_id);
+	if (!session) {
+		return errorJson('Session not found or expired', 'SESSION_ERROR', 404);
+	}
+	return session;
+}
+
+function requireSessionOwner(session: ChatSession, user: AuthJwtPayload): true | Response {
+	if (session.beneficiary_key !== user.beneficiary_key) {
+		return errorJson('Unauthorized - Session does not belong to authenticated user', 'SESSION_AUTH_ERROR', 403);
+	}
+	return true;
+}
 
 /**
  * Validate request body for message endpoint
@@ -82,108 +110,26 @@ async function detectIntentWithBedrock(
 	return null;
 }
 
-function generateChatMessage(params: {
-	content: string;
-	intent: string;
-	slots?: Record<string, unknown>;
-	confidence: number;
-	processingTime: number;
-}): ChatMessage {
-	return {
-		id: nanoid(12),
-		content: params.content,
-		role: 'assistant',
-		timestamp: new Date(),
-		metadata: {
-			intent: params.intent,
-			slots: params.slots,
-			confidence_score: params.confidence,
-			processing_time_ms: params.processingTime
-		}
-	};
-}
-
-function prepareResponse(params: {
-	session: ChatSession;
-	content: string;
-	intent: string;
-	slots?: Record<string, unknown>;
-	confidence: number;
-	processingTime: number;
-}): Response {
-	const message = generateChatMessage(params);
-	addMessageToSession(params.session.session_id, message);
-	updateSessionContext(params.session.session_id, params.intent, params.slots);
-	const response: ChatbotMessageResponse = {
-		success: true,
-		message,
-		session_updated: true
-	};
-	return json(response, { status: 200 });
-}
-
-// Bedrock-powered response generation
-async function generateChatbotReply(
-	systemPrompt: string,
-	history: BedrockMessage[],
-	userInput: string
-): Promise<string> {
-	const bedrockResult = await bedrockService.generateResponse({
-		systemPrompt,
-		previousMessages: history,
-		userInput
-	});
-	return bedrockResult.content;
-}
-
 export const POST: RequestHandler = async ({ request }) => {
 	const startTime = Date.now();
 
 	try {
 		// Authenticate the request
-		const userPayload = authenticateRequest(request);
-		if (!userPayload) {
-			const errorResponse: ApiError = {
-				success: false,
-				error: 'Unauthorized - Invalid or missing JWT token',
-				code: 'AUTH_ERROR'
-			};
-			return json(errorResponse, { status: 401 });
-		}
+		const userPayload = requireAuth(request);
+		if (userPayload instanceof Response) return userPayload;
 
 		// Parse and validate request body
 		const body = await request.json();
-		const messageRequest = validateMessageRequest(body);
-
-		if (!messageRequest) {
-			const errorResponse: ApiError = {
-				success: false,
-				error: 'Invalid request - session_id and message are required',
-				code: 'VALIDATION_ERROR'
-			};
-			return json(errorResponse, { status: 400 });
-		}
+		const messageRequest = requireValidMessageRequest(body);
+		if (messageRequest instanceof Response) return messageRequest;
 
 		// Get the session
-		const session = getSession(messageRequest.session_id);
-		if (!session) {
-			const errorResponse: ApiError = {
-				success: false,
-				error: 'Session not found or expired',
-				code: 'SESSION_ERROR'
-			};
-			return json(errorResponse, { status: 404 });
-		}
+		const session = requireSession(messageRequest.session_id);
+		if (session instanceof Response) return session;
 
 		// Verify session belongs to authenticated user
-		if (session.beneficiary_key !== userPayload.beneficiary_key) {
-			const errorResponse: ApiError = {
-				success: false,
-				error: 'Unauthorized - Session does not belong to authenticated user',
-				code: 'SESSION_AUTH_ERROR'
-			};
-			return json(errorResponse, { status: 403 });
-		}
+		const ownershipCheck = requireSessionOwner(session, userPayload);
+		if (ownershipCheck instanceof Response) return ownershipCheck;
 
 		// Create user message
 		const userMessage: ChatMessage = {
@@ -221,89 +167,36 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Check confidence threshold
 		if (confidence < (intentDetails.confidenceRequired ?? DEFAULT_CONFIDENCE_THRESHOLD)) {
-			return prepareResponse({
+			// Route to Unknown controller
+			const params: IntentHandlerParams = {
 				session,
-				content: 'I am not sure what you mean. Could you please rephrase?',
+				user: userPayload,
+				slots,
 				intent: 'Unknown',
 				confidence,
-				slots,
-				processingTime: Date.now() - startTime
-			});
+				started_at: startTime,
+				user_message: messageRequest.message
+			};
+			const result = await routeIntent('Unknown', params);
+			return json(result);
 		}
 
-		// Intent routing
-		switch (intentDetails.name) {
-			case 'Unknown':
-				return prepareResponse({
-					session,
-					content: 'I am not sure what you mean. Could you please rephrase?',
-					intent: 'Unknown',
-					confidence,
-					slots,
-					processingTime: Date.now() - startTime
-				});
-			case 'Welcome':
-				return prepareResponse({
-					session,
-					content: getWelcomeMessage(userPayload),
-					intent: 'Welcome',
-					confidence,
-					slots,
-					processingTime: Date.now() - startTime
-				});
-		}
-
-		// Prepare chat history for Bedrock response generation
-		const chatHistory: BedrockMessage[] = session.messages
-			.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-			.map((msg) => ({ role: msg.role as 'user' | 'assistant', content: msg.content }));
-
-		const botResponseContent = await generateChatbotReply(
-			RESPONSE_GENERATION_PROMPT,
-			chatHistory,
-			messageRequest.message
-		);
-
-		// Defensive: ensure only string is used for content
-		type ClaudeTextObj = { type: string; text: string };
-		let assistantText = botResponseContent;
-		// If it's a stringified array, parse and extract .text
-		if (typeof assistantText === 'string' && assistantText.trim().startsWith('[')) {
-			try {
-				const arr = JSON.parse(assistantText) as ClaudeTextObj[];
-				if (Array.isArray(arr) && arr.length > 0 && typeof arr[0].text === 'string') {
-					assistantText = arr[0].text;
-				}
-			} catch {
-				// ignore parse error, fallback below
-			}
-		} else if (
-			Array.isArray(assistantText) &&
-			assistantText.length > 0 &&
-			typeof (assistantText as ClaudeTextObj[])[0].text === 'string'
-		) {
-			assistantText = (assistantText as ClaudeTextObj[])[0].text;
-		} else if (
-			typeof assistantText === 'object' &&
-			assistantText !== null &&
-			'text' in assistantText &&
-			typeof (assistantText as ClaudeTextObj).text === 'string'
-		) {
-			assistantText = (assistantText as ClaudeTextObj).text;
-		}
-		if (typeof assistantText !== 'string') {
-			assistantText = '[Error: Unexpected response format from Claude 3]';
-		}
-
-		// Create bot response message
-		return prepareResponse({
+		// Route to the appropriate intent controller
+		const params: IntentHandlerParams = {
 			session,
-			content: assistantText,
-			intent,
+			user: userPayload,
 			slots,
+			intent,
 			confidence,
-			processingTime: Date.now() - startTime
-		});
+			started_at: startTime,
+			user_message: messageRequest.message
+		};
+		const result = await routeIntent(intent, params);
+		// Add assistant message to session history
+		if (result && result.message) {
+			addMessageToSession(messageRequest.session_id, result.message);
+		}
+		return json(result);
 	} catch (error) {
 		console.error('Message endpoint error:', error);
 
