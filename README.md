@@ -87,12 +87,13 @@ docs/                       # Project documentation
 - ✅ **State Management**: Svelte stores with localStorage persistence and proper error handling
 - ✅ **Routing**: Login/chat page routing with authentication guards
 - ✅ **Mock Intent Recognition**: Simulated AI responses for drug pricing, plan info, and provider search
+- ✅ **AWS Bedrock Integration**: Claude 3 Haiku for intent recognition
+- ✅ **Conversation Logic**: Slot filling and follow-up questions
 
 ### Next Steps (To Be Implemented)
 
-- 🔄 **AWS Bedrock Integration**: Claude 3 Haiku for intent recognition
 - 🔄 **Medical Comprehend**: Drug and medical term extraction
-- 🔄 **Conversation Logic**: Slot filling and follow-up questions
+- 🔄 **Lex Alternative**: Explore Lex as a feature flagged alternative for intent mapping
 - 🔄 **API Layer**: Backend services for AI interactions
 
 ## 🎯 Core Features (POC Scope)
