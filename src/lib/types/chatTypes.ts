@@ -2,7 +2,22 @@
  * Chat and conversation type definitions for Medicare Chatbot POC
  */
 
-export interface ChatMessage {
+// Re-export the class-based types for compatibility
+export type { ChatMessage } from '$lib/server/core/chat-message.js';
+export type { ChatSession } from '$lib/server/core/chat-session.js';
+
+// Keep existing metadata interface for backward compatibility
+export interface MessageMetadata {
+	intent?: string;
+	slots?: Record<string, unknown>;
+	confidence_score?: number;
+	processing_time_ms?: number;
+	error?: string;
+	[key: string]: unknown;
+}
+
+// Legacy interface for compatibility during transition
+export interface LegacyChatMessage {
 	id: string;
 	content: string;
 	role: 'user' | 'assistant';
@@ -11,17 +26,14 @@ export interface ChatMessage {
 	metadata?: MessageMetadata;
 }
 
-export interface MessageMetadata {
-	intent?: string;
-	slots?: Record<string, unknown>;
-	confidence_score?: number;
-	processing_time_ms?: number;
-	error?: string;
-}
+// Union type that accepts both old and new formats
+export type ChatMessageLike =
+	| LegacyChatMessage
+	| import('$lib/server/core/chat-message.js').ChatMessage;
 
 export interface ConversationState {
 	session_id: string;
-	messages: ChatMessage[];
+	messages: ChatMessageLike[];
 	is_loading: boolean;
 	current_intent?: string;
 	collected_slots: Record<string, unknown>;
@@ -40,7 +52,7 @@ export type MessageRole = 'user' | 'assistant';
 export interface ChatbotWelcomeResponse {
 	success: boolean;
 	session_id: string;
-	message: ChatMessage;
+	message: ChatMessageLike;
 	error?: string;
 }
 
@@ -51,19 +63,9 @@ export interface ChatbotMessageRequest {
 
 export interface ChatbotMessageResponse {
 	success: boolean;
-	message: ChatMessage;
+	message: ChatMessageLike;
 	session_updated: boolean;
 	error?: string;
-}
-
-export interface ChatSession {
-	session_id: string;
-	beneficiary_key: number;
-	created_at: Date;
-	last_activity: Date;
-	messages: ChatMessage[];
-	current_intent?: string;
-	collected_slots: Record<string, unknown>;
 }
 
 export interface ApiError {

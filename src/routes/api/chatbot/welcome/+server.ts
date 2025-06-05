@@ -4,24 +4,17 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import type { ChatbotWelcomeResponse, ChatMessage, ApiError } from '$lib/types/chatTypes.js';
-import { authenticateRequest } from '$lib/services/jwtAuth.js';
+import type { ChatbotWelcomeResponse, ApiError } from '$lib/types/chatTypes.js';
 import { createSession } from '$lib/services/sessionService.js';
-import { nanoid } from 'nanoid';
+import { ChatMessage } from '$lib/server/core/chat-message.js';
 import { getWelcomeMessage } from '../canned-messages';
+import { requireAuth } from '$lib/server/utils/apiHelpers.js';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		// Authenticate the request
-		const userPayload = authenticateRequest(request);
-		if (!userPayload) {
-			const errorResponse: ApiError = {
-				success: false,
-				error: 'Unauthorized - Invalid or missing JWT token',
-				code: 'AUTH_ERROR'
-			};
-			return json(errorResponse, { status: 401 });
-		}
+		const userPayload = requireAuth(request);
+		if (userPayload instanceof Response) return userPayload;
 
 		// Create a new session for this user
 		const session = createSession(userPayload.beneficiary_key);
@@ -29,22 +22,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Generate personalized welcome message
 		const welcomeContent = getWelcomeMessage(userPayload);
 
-		// Create the welcome message
-		const welcomeMessage: ChatMessage = {
-			id: nanoid(12),
-			content: welcomeContent,
-			role: 'assistant',
-			timestamp: new Date(),
-			metadata: {
-				intent: 'Welcome',
-				confidence_score: 1.0,
-				processing_time_ms: 0
-			}
-		};
+		// Create the welcome message using the class
+		const welcomeMessage = ChatMessage.createAssistantMessage(welcomeContent, {
+			intent: 'Welcome',
+			confidence_score: 1.0,
+			processing_time_ms: 0
+		});
 
-		// Add the welcome message to the session
-		// Note: We don't need to call addMessageToSession since we're returning it
-		// The frontend will display it and then call the message endpoint if needed
+		// We're not adding the welcome message to the session, because it does not
+		// help our context.
 
 		const response: ChatbotWelcomeResponse = {
 			success: true,

@@ -3,8 +3,8 @@
  * Manages in-memory session storage for POC
  */
 
-import type { ChatSession, ChatMessage } from '$lib/types/chatTypes.js';
-import { nanoid } from 'nanoid';
+import { ChatSession } from '$lib/server/core/chat-session.js';
+import { ChatMessage } from '$lib/server/core/chat-message.js';
 
 // In-memory session storage (in production, this would be Redis/database)
 const sessions = new Map<string, ChatSession>();
@@ -14,29 +14,11 @@ const SESSION_TIMEOUT = 60 * 60 * 1000;
 const CLEANUP_INTERVAL = 5 * 60 * 1000;
 
 /**
- * Generate a unique session ID
- */
-function generateSessionId(): string {
-	return nanoid(16);
-}
-
-/**
  * Create a new chat session
  */
 export function createSession(beneficiary_key: number): ChatSession {
-	const session_id = generateSessionId();
-	const now = new Date();
-
-	const session: ChatSession = {
-		session_id,
-		beneficiary_key,
-		created_at: now,
-		last_activity: now,
-		messages: [],
-		collected_slots: {}
-	};
-
-	sessions.set(session_id, session);
+	const session = new ChatSession(beneficiary_key);
+	sessions.set(session.session_id, session);
 	return session;
 }
 
@@ -48,10 +30,7 @@ export function getSession(session_id: string): ChatSession | null {
 	if (!session) return null;
 
 	// Check if session is expired
-	const now = new Date();
-	const timeSinceActivity = now.getTime() - session.last_activity.getTime();
-
-	if (timeSinceActivity > SESSION_TIMEOUT) {
+	if (session.isExpired(SESSION_TIMEOUT)) {
 		sessions.delete(session_id);
 		return null;
 	}
@@ -66,7 +45,7 @@ export function updateSessionActivity(session_id: string): boolean {
 	const session = sessions.get(session_id);
 	if (!session) return false;
 
-	session.last_activity = new Date();
+	session.updateActivity();
 	return true;
 }
 
@@ -77,8 +56,7 @@ export function addMessageToSession(session_id: string, message: ChatMessage): b
 	const session = sessions.get(session_id);
 	if (!session) return false;
 
-	session.messages.push(message);
-	session.last_activity = new Date();
+	session.addMessage(message);
 	return true;
 }
 
@@ -93,9 +71,7 @@ export function updateSessionContext(
 	const session = sessions.get(session_id);
 	if (!session) return false;
 
-	if (intent) session.current_intent = intent;
-	if (slots) session.collected_slots = { ...session.collected_slots, ...slots };
-	session.last_activity = new Date();
+	session.updateContext(intent, slots);
 	return true;
 }
 
@@ -103,12 +79,10 @@ export function updateSessionContext(
  * Clean up expired sessions
  */
 function cleanupExpiredSessions(): void {
-	const now = new Date();
 	const expired: string[] = [];
 
 	for (const [session_id, session] of sessions.entries()) {
-		const timeSinceActivity = now.getTime() - session.last_activity.getTime();
-		if (timeSinceActivity > SESSION_TIMEOUT) {
+		if (session.isExpired(SESSION_TIMEOUT)) {
 			expired.push(session_id);
 		}
 	}

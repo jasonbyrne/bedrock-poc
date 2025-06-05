@@ -12,6 +12,14 @@ export class FindProviderController extends Controller {
 	}
 
 	async handle(): Promise<MessageReply> {
+		// If we don't know the type of provider, ask them
+		if (!this.slots.provider_type) {
+			return {
+				message:
+					'It sounds like you would like to find a provider. What type of provider are you looking for?'
+			};
+		}
+
 		// Extract provider type from slots if available
 		const providerType = this.slots.provider_type ? String(this.slots.provider_type) : 'doctor';
 		const location = this.slots.location ? String(this.slots.location) : 'your area';

@@ -3,7 +3,7 @@
 	 * Individual chat message component
 	 */
 
-	import type { ChatMessage } from '$lib/types/chatTypes.js';
+	import type { ChatMessageLike as ChatMessage } from '$lib/types/chatTypes.js';
 
 	interface Props {
 		message: ChatMessage;
@@ -70,6 +70,11 @@
 					<span class="metadata-separator">•</span>
 					<span class="intent-badge">
 						{message.metadata.intent}
+						{#if message.metadata?.confidence_score !== undefined}
+							<span class="confidence-score"
+								>{(message.metadata.confidence_score * 100).toFixed(2)}%</span
+							>
+						{/if}
 					</span>
 				{/if}
 
@@ -259,6 +264,13 @@
 		@include m.responsive(sm) {
 			display: inline;
 		}
+	}
+
+	.confidence-score {
+		font-size: m.font-size(xs);
+		color: m.color(blue, 500);
+		margin-left: m.space(1);
+		font-weight: m.font-weight(normal);
 	}
 
 	.sent-indicator {

@@ -2,7 +2,7 @@ import type { MessageReply } from '$lib/types/message-reply';
 import Controller from '$lib/server/core/controller';
 
 export class GetDrugPriceController extends Controller {
-	protected minConfidence = 0.7;
+	protected minConfidence = 0.8;
 
 	public async clarification(): Promise<MessageReply> {
 		return {

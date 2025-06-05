@@ -20,7 +20,8 @@ function buildIntentList(): string {
 function buildIntentDetectionPrompt(): string {
 	return `
 
-	You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified JSON object with these fields:
+	You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified 
+	JSON object with these fields:
 - intent (string): one of the supported intents below
 - confidence (number): your confidence (0-1)
 - slots (object, optional): any key-value slots extracted from the message (omit this property if there are no slots)
@@ -43,5 +44,6 @@ export const INTENT_DETECTION_PROMPT = buildIntentDetectionPrompt();
  * Response Generation: Instructs the LLM to reply as a friendly, knowledgeable healthcare assistant.
  */
 export const RESPONSE_GENERATION_PROMPT = `
-You are a helpful and knowledgeable Medicare chatbot. Respond to the user as a friendly healthcare assistant. Keep answers accurate, concise, and easy to understand. If you do not know the answer, say so honestly.
+You are a helpful and knowledgeable Medicare chatbot. Respond to the user as a friendly healthcare assistant. 
+Keep answers accurate, concise, and easy to understand. If you do not know the answer, say so honestly.
 `;

@@ -5,7 +5,10 @@
 
 	import ChatMessage from './ChatMessage.svelte';
 	import ChatInput from './ChatInput.svelte';
-	import type { ChatMessage as ChatMessageType, ConversationState } from '$lib/types/chatTypes.js';
+	import type {
+		ChatMessageLike as ChatMessageType,
+		ConversationState
+	} from '$lib/types/chatTypes.js';
 	import { initializeChatSession, sendChatMessage } from '$lib/services/chatbotApi.js';
 	import { authToken } from '$lib/stores/authStore.js';
 	import { tick } from 'svelte';
@@ -20,7 +23,7 @@
 	});
 
 	let messagesScrollArea: HTMLDivElement;
-	let messagesListElement: HTMLDivElement; // Reference to the messages list container
+	let messagesListElement: HTMLDivElement;
 	let initializationError = $state<string | null>(null);
 	let hasInitialized = $state(false);
 
