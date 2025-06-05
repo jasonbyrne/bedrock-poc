@@ -192,10 +192,6 @@ The project uses a controller pattern for handling chatbot intents. Each intent 
 ```
 src/lib/server/
 ├── controllers/           # Intent-specific controllers
-│   ├── WelcomeController.ts
-│   ├── GetDrugPriceController.ts
-│   ├── GetPlanInfoController.ts
-│   └── UnknownController.ts
 ├── core/
 │   └── controller.ts      # Abstract Controller class
 └── router.ts             # Maps intents to controllers
