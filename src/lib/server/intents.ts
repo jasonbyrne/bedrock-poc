@@ -4,7 +4,6 @@ interface Intent {
 	slots: string[];
 	examples?: string[];
 	description?: string;
-	confidenceRequired?: number;
 	isFallback?: boolean;
 }
 
@@ -53,8 +52,7 @@ export const INTENTS: Intent[] = [
 		text: 'find out what I can do',
 		slots: [],
 		examples: ['Hello', 'Hi there', 'Good morning', 'I need help', 'Can you assist me?'],
-		description: 'User greets, says hello, or asks for help',
-		confidenceRequired: 0.5
+		description: 'User greets, says hello, or asks for help'
 	},
 	{
 		name: 'Unknown',

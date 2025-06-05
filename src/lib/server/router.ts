@@ -1,29 +1,32 @@
 // Central router for intent controllers
 import type { IntentHandlerParams, IntentHandlerResult } from '$lib/types/intentTypes';
-import { handleWelcome } from './controllers/WelcomeController';
-import { handleUnknown } from './controllers/UnknownController';
-import { handleGetDrugPrice } from './controllers/GetDrugPriceController';
-import { handleGetPlanInfo } from './controllers/GetPlanInfoController';
+import { WelcomeController } from './controllers/WelcomeController';
+import { UnknownController } from './controllers/UnknownController';
+import { GetDrugPriceController } from './controllers/GetDrugPriceController';
+import { GetPlanInfoController } from './controllers/GetPlanInfoController';
+import { FindProviderController } from './controllers/FindProviderController';
 import { createAssistantMessage } from './utils/createAssistantMessage';
 import { addMessageToSession } from '$lib/services/sessionService';
-import type { MessageReply } from '$lib/types/message-reply';
 
-// Map intent names to their controller handler functions
-const intentControllerMap: Record<string, (params: IntentHandlerParams) => Promise<MessageReply>> =
-	{
-		Welcome: handleWelcome,
-		Unknown: handleUnknown,
-		GetDrugPrice: handleGetDrugPrice,
-		GetPlanInfo: handleGetPlanInfo
-	};
+import type Controller from './core/controller';
+
+// Map intent names to their controller classes
+const intentControllerMap: Record<string, new (params: IntentHandlerParams) => Controller> = {
+	Welcome: WelcomeController,
+	Unknown: UnknownController,
+	GetDrugPrice: GetDrugPriceController,
+	GetPlanInfo: GetPlanInfoController,
+	FindProvider: FindProviderController
+};
 
 export async function routeIntent(
 	intent: string,
 	params: IntentHandlerParams
 ): Promise<IntentHandlerResult> {
-	const handler = intentControllerMap[intent];
-	if (handler) {
-		const content = await handler(params);
+	const ControllerClass = intentControllerMap[intent];
+	if (ControllerClass) {
+		const controller = new ControllerClass(params);
+		const content = await controller.handle();
 		const assistantMessage = createAssistantMessage({
 			content: content.message,
 			intent: params.intent,

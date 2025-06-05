@@ -16,8 +16,6 @@ import { getIntentByName } from '$lib/server/intents';
 import type { IntentHandlerParams } from '$lib/types/intentTypes';
 import { routeIntent } from '$lib/server/router';
 
-const DEFAULT_CONFIDENCE_THRESHOLD = 0.7;
-
 function errorJson(error: string, code: string, status: number): Response {
 	return json({ success: false, error, code }, { status });
 }
@@ -33,7 +31,11 @@ function requireAuth(request: Request): AuthJwtPayload | Response {
 function requireValidMessageRequest(body: unknown): ChatbotMessageRequest | Response {
 	const messageRequest = validateMessageRequest(body);
 	if (!messageRequest) {
-		return errorJson('Invalid request - session_id and message are required', 'VALIDATION_ERROR', 400);
+		return errorJson(
+			'Invalid request - session_id and message are required',
+			'VALIDATION_ERROR',
+			400
+		);
 	}
 	return messageRequest;
 }
@@ -48,7 +50,11 @@ function requireSession(session_id: string): ChatSession | Response {
 
 function requireSessionOwner(session: ChatSession, user: AuthJwtPayload): true | Response {
 	if (session.beneficiary_key !== user.beneficiary_key) {
-		return errorJson('Unauthorized - Session does not belong to authenticated user', 'SESSION_AUTH_ERROR', 403);
+		return errorJson(
+			'Unauthorized - Session does not belong to authenticated user',
+			'SESSION_AUTH_ERROR',
+			403
+		);
 	}
 	return true;
 }
@@ -163,22 +169,6 @@ export const POST: RequestHandler = async ({ request }) => {
 				code: 'INTENT_ERROR'
 			};
 			return json(errorResponse, { status: 422 });
-		}
-
-		// Check confidence threshold
-		if (confidence < (intentDetails.confidenceRequired ?? DEFAULT_CONFIDENCE_THRESHOLD)) {
-			// Route to Unknown controller
-			const params: IntentHandlerParams = {
-				session,
-				user: userPayload,
-				slots,
-				intent: 'Unknown',
-				confidence,
-				started_at: startTime,
-				user_message: messageRequest.message
-			};
-			const result = await routeIntent('Unknown', params);
-			return json(result);
 		}
 
 		// Route to the appropriate intent controller
