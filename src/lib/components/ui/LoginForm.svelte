@@ -201,7 +201,7 @@
 							Authenticating...
 						{:else}
 							Continue to Chat
-							<svg class="arrow-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<svg class="arrow-icon" fill="none" stroke="#fff" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
 									stroke-linejoin="round"

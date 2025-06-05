@@ -83,7 +83,7 @@
 @mixin button-primary {
 	@include button-base;
 	background-color: color(primary, 600);
-	color: color(white);
+	color: #fff;
 
 	&:hover:not(:disabled) {
 		background-color: color(primary, 700);

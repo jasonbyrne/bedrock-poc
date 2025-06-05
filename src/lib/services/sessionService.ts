@@ -71,7 +71,7 @@ export function updateSessionContext(
 	const session = sessions.get(session_id);
 	if (!session) return false;
 
-	session.updateContext(intent, slots);
+	session.updateContext({ intent, slots });
 	return true;
 }
 
