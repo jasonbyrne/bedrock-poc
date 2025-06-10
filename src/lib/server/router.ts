@@ -2,9 +2,10 @@
 import type { IntentHandlerParams, IntentHandlerResult } from '$lib/types/intentTypes';
 import { WelcomeController } from './controllers/WelcomeController';
 import { UnknownController } from './controllers/UnknownController';
-import { GetDrugPriceController } from './controllers/GetDrugPriceController';
+import { GetSingleDrugPriceController } from './controllers/GetSingleDrugPriceController';
 import { GetPlanInfoController } from './controllers/GetPlanInfoController';
 import { FindProviderController } from './controllers/FindProviderController';
+import { GetMultiDrugPriceController } from './controllers/GetMultiDrugPriceController';
 import { createAssistantMessage } from './utils/createAssistantMessage';
 import { addMessageToSession } from '$lib/services/sessionService';
 
@@ -14,7 +15,8 @@ import type Controller from './core/controller';
 const intentControllerMap: Record<string, new (params: IntentHandlerParams) => Controller> = {
 	Welcome: WelcomeController,
 	Unknown: UnknownController,
-	GetDrugPrice: GetDrugPriceController,
+	GetSingleDrugPrice: GetSingleDrugPriceController,
+	GetMultiDrugPrice: GetMultiDrugPriceController,
 	GetPlanInfo: GetPlanInfoController,
 	FindProvider: FindProviderController
 };
@@ -26,14 +28,23 @@ export async function routeIntent(
 	const ControllerClass = intentControllerMap[intent];
 	if (ControllerClass) {
 		const controller = new ControllerClass(params);
-		const content = controller.isConfident()
-			? await controller.handle()
-			: await controller.clarification();
+		const content = await (async () => {
+			try {
+				return controller.isConfident()
+					? await controller.handle()
+					: await controller.clarification();
+			} catch (error) {
+				console.error('[ERROR] Error handling intent:', error);
+				return {
+					message: 'Sorry. We encountered an error. Can you restate your request?'
+				};
+			}
+		})();
 		const assistantMessage = createAssistantMessage({
 			content: content.message,
-			intent: params.intent,
-			slots: params.slots,
-			confidence: params.confidence,
+			intent: params.session.current_intent?.name || 'Unknown',
+			slots: params.session.collected_slots,
+			confidence: params.session.current_confidence || 0,
 			started_at: params.started_at
 		});
 		addMessageToSession(params.session.session_id, assistantMessage);
@@ -48,9 +59,9 @@ export async function routeIntent(
 		success: true,
 		message: createAssistantMessage({
 			content: 'I am not sure what you mean. Could you please rephrase?',
-			intent: params.intent,
-			slots: params.slots,
-			confidence: params.confidence,
+			intent: params.session.current_intent?.name || 'Unknown',
+			slots: params.session.collected_slots,
+			confidence: params.session.current_confidence || 0,
 			started_at: params.started_at
 		}),
 		session_updated: false

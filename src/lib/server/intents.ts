@@ -1,17 +1,21 @@
-interface Intent {
-	name: string;
-	text: string;
-	slots: string[];
-	examples?: string[];
-	description?: string;
-	isFallback?: boolean;
-}
+import type { Intent } from '$lib/types/intentTypes';
 
 export const INTENTS: Intent[] = [
 	{
-		name: 'GetDrugPrice',
+		name: 'GetSingleDrugPrice',
 		text: 'get drug prices',
-		slots: ['drug_name', 'drug_form', 'dosage', 'quantity', 'frequency', 'duration'],
+		slots: [
+			'drug_name',
+			'drug_form',
+			'dosage',
+			'frequency',
+			'duration',
+			'rate',
+			'strength',
+			'route'
+		],
+		criticalSlots: ['drug_name'],
+		requiredSlots: ['drug_name', 'dosage', 'duration', 'frequency'],
 		examples: [
 			'What is the [duration] cost for [dosage]mg of [drug_name]?',
 			'How much does [dosage] of [drug_name] cost for [duration]?',
@@ -19,17 +23,26 @@ export const INTENTS: Intent[] = [
 			'What is my copay for [drug_name]?',
 			'How much will I pay for [drug_name] at [pharmacy]?'
 		],
-		description: 'User asks about drug/medication costs, coverage, or formulary'
+		description: 'User asks about the cost of a single drug/medication'
+	},
+	{
+		name: 'GetMultiDrugPrice',
+		text: 'get drug prices',
+		slots: ['drug_names'],
+		criticalSlots: ['drug_names'],
+		examples: ['What is the cost of [drug_name], [drug_name], and [drug_name]?'],
+		description: 'User asks about the cost of multiple drugs/medications'
 	},
 	{
 		name: 'FindProvider',
 		text: 'find a provider',
-		slots: ['provider_type', 'specialty', 'location', 'insurance_plan', 'preferred_provider'],
+		slots: ['provider_type', 'location', 'insurance_plan', 'preferred_provider'],
+		criticalSlots: ['provider_type', 'location'],
 		examples: [
-			'Find a [specialty] near [location]',
+			'Find a [provider_type] near [location]',
 			'Are there any [provider_type] in my network?',
 			'Who is my primary care physician?',
-			'I need a [specialty] doctor in [city]',
+			'I need a [specialty] doctor in [location]',
 			'Can you help me locate a hospital close to [location]?'
 		],
 		description: 'User wants to find a doctor, provider, or facility'
@@ -38,6 +51,7 @@ export const INTENTS: Intent[] = [
 		name: 'GetPlanInfo',
 		text: 'get plan information',
 		slots: ['plan_type', 'benefit_type', 'coverage_area', 'effective_date', 'network_status'],
+		criticalSlots: ['plan_type', 'benefit_type'],
 		examples: [
 			'What does my [plan_type] cover?',
 			'Explain my [benefit_type] benefits',
@@ -51,6 +65,7 @@ export const INTENTS: Intent[] = [
 		name: 'Welcome',
 		text: 'find out what I can do',
 		slots: [],
+		criticalSlots: [],
 		examples: ['Hello', 'Hi there', 'Good morning', 'I need help', 'Can you assist me?'],
 		description: 'User greets, says hello, or asks for help'
 	},
@@ -59,6 +74,7 @@ export const INTENTS: Intent[] = [
 		isFallback: true,
 		text: 'unclear',
 		slots: [],
+		criticalSlots: [],
 		examples: [
 			'I want to talk about something else',
 			'Blah blah',

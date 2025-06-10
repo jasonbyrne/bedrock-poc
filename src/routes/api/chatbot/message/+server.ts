@@ -15,7 +15,7 @@ import {
 	requireSession,
 	requireSessionOwner
 } from '$lib/server/utils/apiHelpers.js';
-import { detectIntentWithBedrock } from '$lib/server/utils/intentDetection.js';
+import { detectIntent } from '$lib/server/utils/intentDetection.js';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const startTime = Date.now();
@@ -38,12 +38,15 @@ export const POST: RequestHandler = async ({ request }) => {
 		const ownershipCheck = requireSessionOwner(session, userPayload);
 		if (ownershipCheck instanceof Response) return ownershipCheck;
 
+		// Set user info and current message in session (single source of truth)
+		session.setUser(userPayload);
+		session.setCurrentUserMessage(messageRequest.message);
+
 		// Create user message using the class
 		const userMessage = ChatMessage.createUserMessage(messageRequest.message);
 		session.addMessage(userMessage);
 
-		// Detect intent using Bedrock with conversation context
-		const intentResult = await detectIntentWithBedrock(session);
+		const intentResult = await detectIntent(session);
 		if (!intentResult) {
 			const errorResponse: ApiError = {
 				success: false,
@@ -68,15 +71,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Update the session context with the latest intent, slots, and confidence
 		session.updateContext({ intent, slots, confidence });
 
-		// Route to the appropriate intent controller
+		// Route to the appropriate intent controller - simplified params
 		const params: IntentHandlerParams = {
 			session,
-			user: userPayload,
-			slots,
-			intent,
-			confidence,
-			started_at: startTime,
-			user_message: messageRequest.message
+			started_at: startTime
 		};
 		const result = await routeIntent(intent, params);
 

@@ -45,6 +45,7 @@
 	"dependencies": {
 		"@aws-sdk/client-bedrock-runtime": "^3.823.0",
 		"@aws-sdk/client-comprehendmedical": "^3.823.0",
+		"@aws-sdk/client-lex-runtime-v2": "^3.825.0",
 		"nanoid": "^5.1.5",
 		"pino": "^9.7.0"
 	}

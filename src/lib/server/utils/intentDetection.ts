@@ -1,17 +1,29 @@
 /**
- * Intent detection utilities using AWS Bedrock
- * Handles conversation context and Claude API requirements
+ * Intent detection utilities using AWS Bedrock and AWS Lex
+ * Handles conversation context and different AI service requirements
  */
 
 import { ChatSession } from '$lib/server/core/chat-session.js';
 import { bedrockService } from '$lib/server/services/bedrockService';
-import { INTENT_DETECTION_PROMPT } from '$lib/server/systemPrompts';
 
 /**
  * Bedrock-powered intent detection with conversation context
  * Uses the session's conversation history to provide context for better intent recognition
  */
-export async function detectIntentWithBedrock(
+export async function detectIntent(
+	session: ChatSession,
+	aws_service: 'bedrock' | 'lex' = 'bedrock'
+): Promise<{ intent: string; confidence: number; slots?: Record<string, unknown> } | null> {
+	return aws_service === 'bedrock'
+		? await bedrockService.detectIntent(session)
+		: await detectIntentWithLex(session);
+}
+
+/**
+ * Lex-powered intent detection with session context
+ * Uses AWS Lex V2 Runtime for natural language understanding
+ */
+export async function detectIntentWithLex(
 	session: ChatSession
 ): Promise<{ intent: string; confidence: number; slots?: Record<string, unknown> } | null> {
 	// Get the current user message (the last message which was just added)
@@ -21,79 +33,73 @@ export async function detectIntentWithBedrock(
 		return null;
 	}
 
-	// Get the last 4 messages for context (excluding the current one we just added)
-	const contextMessages = session.getLastNMessages(4, 1);
-
-	// Convert ChatMessage instances to the format expected by bedrockService
-	let previousMessages = contextMessages.map((msg) => ({
-		role: msg.role,
-		content: msg.content
-	}));
-
-	// Claude API requires strict alternation between user and assistant roles
-	// Filter to ensure proper alternation
-	const filteredMessages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-	let lastRole: 'user' | 'assistant' | null = null;
-
-	for (const msg of previousMessages) {
-		// Only add message if it's a different role from the last one
-		if (msg.role !== lastRole) {
-			filteredMessages.push(msg);
-			lastRole = msg.role;
-		}
-		// If same role, skip this message (keeps the conversation flowing)
-	}
-
-	// Ensure we start with a user message
-	while (filteredMessages.length > 0 && filteredMessages[0].role === 'assistant') {
-		filteredMessages.shift();
-	}
-
-	previousMessages = filteredMessages;
-
-	console.log('[DEBUG] Intent detection with context:', {
-		currentMessage: currentUserMessage.content,
-		contextMessagesCount: previousMessages.length,
-		rawContextCount: contextMessages.length,
-		context: previousMessages.map((m) => `${m.role}: ${m.content}`).join(' | ')
-	});
-
-	const bedrockResult = await bedrockService.generateResponse({
-		systemPrompt: INTENT_DETECTION_PROMPT,
-		previousMessages,
-		userInput: currentUserMessage.content
-	});
-
-	console.log('[DEBUG] Raw Bedrock intent output:', bedrockResult.content);
-
 	try {
-		interface ParsedIntent {
-			intent?: string;
-			confidence?: number;
-			slots?: Record<string, unknown>;
-		}
-		let parsed: ParsedIntent | null = null;
+		// Dynamic import to avoid linter errors when package isn't installed
+		const { lexService } = await import('$lib/server/services/lexService');
 
-		// Try to parse as array first (Claude 3 format)
-		if (typeof bedrockResult.content === 'string' && bedrockResult.content.trim().startsWith('[')) {
-			const arr: Array<{ type: string; text: string }> = JSON.parse(bedrockResult.content);
-			if (Array.isArray(arr) && arr.length > 0 && typeof arr[0].text === 'string') {
-				parsed = JSON.parse(arr[0].text) as ParsedIntent;
+		// Use session ID for Lex context
+		const sessionId = session.session_id;
+
+		// Get previous session context for Lex session attributes
+		const sessionAttributes: Record<string, string> = {};
+
+		// Convert session context to Lex session attributes (strings only)
+		if (session.current_intent) {
+			sessionAttributes.previousIntent = session.current_intent.name;
+		}
+		if (session.current_confidence !== undefined) {
+			sessionAttributes.previousConfidence = session.current_confidence.toString();
+		}
+		// Add any collected slots as context
+		if (session.collected_slots) {
+			for (const [key, value] of Object.entries(session.collected_slots)) {
+				if (typeof value === 'string' || typeof value === 'number') {
+					sessionAttributes[`slot_${key}`] = value.toString();
+				}
 			}
-		} else {
-			parsed = JSON.parse(bedrockResult.content) as ParsedIntent;
 		}
 
-		console.log('[DEBUG] Parsed intent JSON:', parsed);
+		console.log('[DEBUG] Lex intent detection:', {
+			text: currentUserMessage.content,
+			sessionId,
+			sessionAttributesCount: Object.keys(sessionAttributes).length,
+			sessionAttributes
+		});
 
-		if (parsed && typeof parsed.intent === 'string' && typeof parsed.confidence === 'number') {
-			return parsed as { intent: string; confidence: number; slots?: Record<string, unknown> };
+		const lexResult = await lexService.recognizeText({
+			text: currentUserMessage.content,
+			sessionId,
+			sessionAttributes: Object.keys(sessionAttributes).length > 0 ? sessionAttributes : undefined
+		});
+
+		if (!lexResult) {
+			console.warn('[WARN] No intent result from Lex');
+			return null;
 		}
 
-		console.warn('[WARN] Parsed object missing required fields:', parsed);
-	} catch (err) {
-		console.error('Failed to parse Bedrock intent JSON:', err, bedrockResult.content);
+		console.log('[DEBUG] Lex intent result:', {
+			intent: lexResult.intent,
+			confidence: lexResult.confidence,
+			slots: lexResult.slots,
+			interpretationsCount: lexResult.interpretations?.length || 0
+		});
+
+		// Return result in the same format as Bedrock
+		return {
+			intent: lexResult.intent,
+			confidence: lexResult.confidence,
+			slots: lexResult.slots
+		};
+	} catch (error) {
+		console.error('[ERROR] Lex intent detection failed:', error);
+
+		// If Lex service is not available, this is expected during development
+		if (error instanceof Error && error.message.includes('Cannot find module')) {
+			console.warn(
+				'[WARN] Lex service not available - install @aws-sdk/client-lexv2-runtime to use Lex intent detection'
+			);
+		}
+
+		return null;
 	}
-
-	return null;
 }
