@@ -1,6 +1,5 @@
 import type { MessageReply } from '$lib/types/message-reply';
 import Controller from '$lib/server/core/controller';
-import type { ChatSession } from '$lib/server/core/chat-session';
 import {
 	medicalComprehendService,
 	type DrugEntityExtractionResult
@@ -8,6 +7,7 @@ import {
 import type { Medication } from '$lib/types/persona';
 import { bedrockService } from '$lib/server/services/bedrockService';
 import { toString } from '$lib/server/utils/string';
+import { backfillObject } from '$lib/utils/objectMerge';
 
 export class GetSingleDrugPriceController extends Controller {
 	protected minConfidence = 0.8;
@@ -51,48 +51,23 @@ export class GetSingleDrugPriceController extends Controller {
 
 	/**
 	 * Backfill medication info with beneficiary medication info or provided slots.
+	 * Uses a utility pattern where the base object (drugInfo) wins, and missing values
+	 * are filled from overlays in priority order.
 	 * @param drugInfo - The drug info to backfill.
 	 * @returns The backfilled drug info.
 	 */
 	private backfillMedicationInfo(drugInfo: DrugEntityExtractionResult): DrugEntityExtractionResult {
 		const drugName = drugInfo.normalizedDrugName || drugInfo.drugName || '';
 		const beneficiaryMedication = this.findDrugInBeneficiaryMedications(drugName);
-		if (!beneficiaryMedication) return drugInfo;
-		return {
-			...drugInfo,
-			dosage: toString(
-				drugInfo.dosage || beneficiaryMedication.dosage || this.session.collectedSlots.dosage,
-				''
-			),
-			drugForm: toString(
-				drugInfo.drugForm ||
-					beneficiaryMedication.drugForm ||
-					this.session.collectedSlots.drug_form,
-				''
-			),
-			route: toString(
-				drugInfo.route || beneficiaryMedication.route || this.session.collectedSlots.route,
-				''
-			),
-			frequency: toString(
-				drugInfo.frequency ||
-					beneficiaryMedication.frequency ||
-					this.session.collectedSlots.frequency,
-				''
-			),
-			duration: toString(
-				drugInfo.duration || beneficiaryMedication.duration || this.session.collectedSlots.duration,
-				'monthly' // Default to monthly if not provided
-			),
-			rate: toString(
-				drugInfo.rate || beneficiaryMedication.rate || this.session.collectedSlots.rate,
-				''
-			),
-			strength: toString(
-				drugInfo.strength || beneficiaryMedication.strength || this.session.collectedSlots.strength,
-				''
-			)
+		const defaultValues = {
+			duration: 'monthly'
 		};
+		return backfillObject(
+			drugInfo,
+			beneficiaryMedication ?? {},
+			this.session.collectedSlots,
+			defaultValues
+		);
 	}
 
 	private async generateNeedMoreInfoResponse(): Promise<MessageReply> {
@@ -105,6 +80,27 @@ export class GetSingleDrugPriceController extends Controller {
 		return this.reply(clarification.content);
 	}
 
+	private async queryMedicalComprehend() {
+		const slotsToUse = [
+			'drug_name',
+			'dosage',
+			'frequency',
+			'duration',
+			'rate',
+			'strength',
+			'route',
+			'drug_form'
+		];
+		const slots = slotsToUse
+			.filter((slot) => this.session.collectedSlots[slot])
+			.map((slot) => `${slot}: ${this.session.collectedSlots[slot]}`)
+			.join('\n');
+		return await medicalComprehendService.extractDrugInformation(`
+			Data: ${slots}
+			User Asked:  ${this.session.userMessage || ''}
+		`);
+	}
+
 	async handle(): Promise<MessageReply> {
 		// Drug name is required to proceed
 		const drugName = this.session.collectedSlots.drug_name as string | undefined;
@@ -112,12 +108,7 @@ export class GetSingleDrugPriceController extends Controller {
 
 		// Look up the drug information in AWS Comprehend Medical
 		console.log('[DEBUG] Processing drug name with Medical Comprehend:', drugName);
-		const medicalComprehendDrugInfo = await medicalComprehendService.extractDrugInformation(
-			`
-				Slots: ${JSON.stringify(this.session.collectedSlots)}
-				User message: ${this.session.userMessage || ''}
-			`
-		);
+		const medicalComprehendDrugInfo = await this.queryMedicalComprehend();
 		const drugInfo = this.backfillMedicationInfo(medicalComprehendDrugInfo);
 		if (drugInfo.error) {
 			console.warn('[WARN] Medical Comprehend processing note:', drugInfo.error.message);

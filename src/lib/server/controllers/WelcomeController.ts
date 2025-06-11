@@ -14,7 +14,7 @@ export class WelcomeController extends Controller {
 
 	async handle(): Promise<MessageReply> {
 		return {
-			message: getWelcomeMessage(this.session.user)
+			message: getWelcomeMessage(this.user)
 		};
 	}
 }

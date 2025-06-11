@@ -122,7 +122,7 @@
 			<SearchInput
 				onSearch={handleSearch}
 				disabled={isLoading || isStreaming}
-				placeholder="Ask anything about your Medicare Part D coverage, pharmacy locations, or drug pricing..."
+				placeholder="Ask about Medicare benefits, drug prices, or plan information..."
 			/>
 
 			{#if initializationError}

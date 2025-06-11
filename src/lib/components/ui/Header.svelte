@@ -22,28 +22,40 @@
 
 	// Navigation functions and state
 	let isDropdownOpen = $state(false);
+	let isMobileMenuOpen = $state(false);
 
 	function goToChat(): void {
 		goto('/chat');
 		isDropdownOpen = false;
+		isMobileMenuOpen = false;
 	}
 
 	function goToSearch(): void {
 		goto('/search');
 		isDropdownOpen = false;
+		isMobileMenuOpen = false;
 	}
 
 	function goToFeed(): void {
 		goto('/feed');
 		isDropdownOpen = false;
+		isMobileMenuOpen = false;
 	}
 
 	function toggleDropdown(): void {
 		isDropdownOpen = !isDropdownOpen;
 	}
 
+	function toggleMobileMenu(): void {
+		isMobileMenuOpen = !isMobileMenuOpen;
+	}
+
 	function closeDropdown(): void {
 		isDropdownOpen = false;
+	}
+
+	function closeMobileMenu(): void {
+		isMobileMenuOpen = false;
 	}
 
 	// Check current route and get current page info
@@ -76,6 +88,9 @@
 		if (isDropdownOpen && !target.closest('.navigation-dropdown')) {
 			isDropdownOpen = false;
 		}
+		if (isMobileMenuOpen && !target.closest('.mobile-menu-container')) {
+			isMobileMenuOpen = false;
+		}
 	}
 </script>
 
@@ -89,7 +104,7 @@
 				<div class="title-section">
 					<!-- Logo/Icon -->
 					<div class="logo">
-						<svg class="logo-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+						<svg class="logo-icon" fill="none" stroke="white" viewBox="0 0 24 24">
 							<path
 								stroke-linecap="round"
 								stroke-linejoin="round"
@@ -218,36 +233,159 @@
 			<!-- Right side - User actions -->
 			<div class="header-right">
 				{#if $currentUser}
-					<!-- Mobile user info -->
-					<div class="mobile-user-info">
-						<span class="mobile-user-name">
-							{$currentUser.firstName}
-						</span>
-						<span class="mobile-plan-badge">
-							{$currentUser.planType}
-						</span>
+					<!-- Desktop user section -->
+					<div class="desktop-user-section">
+						<!-- User avatar -->
+						<div class="user-section">
+							<div class="avatar">
+								<span class="avatar-initials">
+									{$currentUser.firstName.charAt(0)}{$currentUser.lastName.charAt(0)}
+								</span>
+							</div>
+
+							<!-- Logout button -->
+							<Button variant="ghost" size="sm" onclick={handleLogout}>
+								<svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+									></path>
+								</svg>
+								<span class="logout-text">Logout</span>
+							</Button>
+						</div>
 					</div>
 
-					<!-- User avatar -->
-					<div class="user-section">
-						<div class="avatar">
-							<span class="avatar-initials">
-								{$currentUser.firstName.charAt(0)}{$currentUser.lastName.charAt(0)}
-							</span>
-						</div>
-
-						<!-- Logout button -->
-						<Button variant="ghost" size="sm" onclick={handleLogout}>
-							<svg class="logout-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-								<path
-									stroke-linecap="round"
-									stroke-linejoin="round"
-									stroke-width="2"
-									d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-								></path>
+					<!-- Mobile hamburger menu -->
+					<div class="mobile-menu-container">
+						<button class="hamburger-button" onclick={toggleMobileMenu}>
+							<svg class="hamburger-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								{#if isMobileMenuOpen}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M6 18L18 6M6 6l12 12"
+									></path>
+								{:else}
+									<path
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										stroke-width="2"
+										d="M4 6h16M4 12h16M4 18h16"
+									></path>
+								{/if}
 							</svg>
-							Logout
-						</Button>
+						</button>
+
+						{#if isMobileMenuOpen}
+							<div class="mobile-menu">
+								<!-- User info section -->
+								<div class="mobile-user-info">
+									<div class="mobile-avatar">
+										<span class="avatar-initials">
+											{$currentUser.firstName.charAt(0)}{$currentUser.lastName.charAt(0)}
+										</span>
+									</div>
+									<div class="mobile-user-details">
+										<span class="mobile-user-name">
+											{getUserDisplayName()}
+										</span>
+										<span class="mobile-plan-badge">
+											{$currentUser.planType}
+										</span>
+									</div>
+								</div>
+
+								<!-- Navigation -->
+								<div class="mobile-nav">
+									<button
+										class="mobile-nav-item"
+										class:mobile-nav-item-active={currentPath === '/chat'}
+										onclick={goToChat}
+									>
+										<svg
+											class="mobile-nav-icon"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+											></path>
+										</svg>
+										<span>Chat</span>
+									</button>
+
+									<button
+										class="mobile-nav-item"
+										class:mobile-nav-item-active={currentPath === '/search'}
+										onclick={goToSearch}
+									>
+										<svg
+											class="mobile-nav-icon"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+											></path>
+										</svg>
+										<span>Search</span>
+									</button>
+
+									<button
+										class="mobile-nav-item"
+										class:mobile-nav-item-active={currentPath === '/feed'}
+										onclick={goToFeed}
+									>
+										<svg
+											class="mobile-nav-icon"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"
+											></path>
+										</svg>
+										<span>Feed</span>
+									</button>
+								</div>
+
+								<!-- Logout -->
+								<div class="mobile-logout">
+									<button class="mobile-logout-button" onclick={handleLogout}>
+										<svg
+											class="mobile-logout-icon"
+											fill="none"
+											stroke="currentColor"
+											viewBox="0 0 24 24"
+										>
+											<path
+												stroke-linecap="round"
+												stroke-linejoin="round"
+												stroke-width="2"
+												d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+											></path>
+										</svg>
+										<span>Logout</span>
+									</button>
+								</div>
+							</div>
+						{/if}
 					</div>
 				{/if}
 			</div>
@@ -289,6 +427,10 @@
 		justify-content: space-between;
 		height: 4rem;
 		gap: m.space(4);
+
+		@media (max-width: 768px) {
+			gap: m.space(2);
+		}
 	}
 
 	.header-left {
@@ -326,13 +468,16 @@
 	.logo-icon {
 		width: 1.25rem;
 		height: 1.25rem;
-		color: m.color(white);
 	}
 
 	.title {
 		font-size: m.font-size(xl);
 		font-weight: m.font-weight(semibold);
 		color: m.color(gray, 900);
+
+		@media (max-width: 768px) {
+			font-size: m.font-size(lg);
+		}
 	}
 
 	.welcome-message {
@@ -395,6 +540,11 @@
 			outline: none;
 			border-color: m.color(primary, 500);
 			box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+		}
+
+		@media (max-width: 768px) {
+			padding: m.space(2) m.space(3);
+			gap: m.space(1);
 		}
 	}
 
@@ -478,24 +628,172 @@
 		flex-shrink: 0;
 	}
 
-	.mobile-user-info {
+	.desktop-user-section {
+		display: none;
+
+		@include m.responsive(md) {
+			display: flex;
+			align-items: center;
+			gap: m.space(4);
+		}
+	}
+
+	.mobile-menu-container {
+		position: relative;
 		display: flex;
-		align-items: center;
-		gap: m.space(2);
 
 		@include m.responsive(md) {
 			display: none;
 		}
 	}
 
+	.hamburger-button {
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		width: 2.5rem;
+		height: 2.5rem;
+		border: none;
+		background: transparent;
+		border-radius: m.radius(lg);
+		cursor: pointer;
+		transition: background-color m.transition(fast);
+
+		&:hover {
+			background-color: m.color(gray, 100);
+		}
+
+		&:focus {
+			outline: none;
+			background-color: m.color(gray, 100);
+		}
+	}
+
+	.hamburger-icon {
+		width: 1.5rem;
+		height: 1.5rem;
+		color: m.color(gray, 700);
+	}
+
+	.mobile-menu {
+		position: absolute;
+		top: 100%;
+		right: 0;
+		margin-top: m.space(2);
+		width: 16rem;
+		background: white;
+		border: 1px solid m.color(gray, 200);
+		border-radius: m.radius(xl);
+		box-shadow: m.shadow(xl);
+		z-index: 50;
+		overflow: hidden;
+	}
+
+	.mobile-user-info {
+		display: flex;
+		align-items: center;
+		gap: m.space(3);
+		padding: m.space(4);
+		border-bottom: 1px solid m.color(gray, 100);
+	}
+
+	.mobile-avatar {
+		flex-shrink: 0;
+		width: 2.5rem;
+		height: 2.5rem;
+		background-color: m.color(gray, 300);
+		border-radius: m.radius(full);
+		@include m.flex-center;
+	}
+
+	.mobile-user-details {
+		flex: 1;
+		min-width: 0;
+	}
+
 	.mobile-user-name {
+		display: block;
 		font-size: m.font-size(sm);
 		font-weight: m.font-weight(medium);
 		color: m.color(gray, 900);
+		margin-bottom: m.space(1);
 	}
 
 	.mobile-plan-badge {
 		@extend .plan-badge;
+		font-size: m.font-size(xs);
+	}
+
+	.mobile-nav {
+		padding: m.space(2) 0;
+	}
+
+	.mobile-nav-item {
+		display: flex;
+		align-items: center;
+		gap: m.space(3);
+		width: 100%;
+		padding: m.space(3) m.space(4);
+		border: none;
+		background: transparent;
+		font-size: m.font-size(sm);
+		font-weight: m.font-weight(medium);
+		color: m.color(gray, 700);
+		cursor: pointer;
+		transition: all m.transition(fast);
+		text-align: left;
+
+		&:hover {
+			background-color: m.color(gray, 50);
+		}
+
+		&.mobile-nav-item-active {
+			background-color: m.color(primary, 50);
+			color: m.color(primary, 700);
+
+			.mobile-nav-icon {
+				color: m.color(primary, 600);
+			}
+		}
+	}
+
+	.mobile-nav-icon {
+		width: 1.25rem;
+		height: 1.25rem;
+		flex-shrink: 0;
+		color: m.color(gray, 500);
+	}
+
+	.mobile-logout {
+		border-top: 1px solid m.color(gray, 100);
+		padding: m.space(2);
+	}
+
+	.mobile-logout-button {
+		display: flex;
+		align-items: center;
+		gap: m.space(3);
+		width: 100%;
+		padding: m.space(3) m.space(4);
+		border: none;
+		background: transparent;
+		font-size: m.font-size(sm);
+		font-weight: m.font-weight(medium);
+		color: m.color(red, 600);
+		cursor: pointer;
+		transition: all m.transition(fast);
+		text-align: left;
+		border-radius: m.radius(lg);
+
+		&:hover {
+			background-color: m.color(red, 50);
+		}
+	}
+
+	.mobile-logout-icon {
+		width: 1.25rem;
+		height: 1.25rem;
+		flex-shrink: 0;
 	}
 
 	.user-section {
@@ -523,5 +821,15 @@
 		width: 1rem;
 		height: 1rem;
 		margin-right: m.space(2);
+
+		@media (max-width: 480px) {
+			margin-right: 0;
+		}
+	}
+
+	.logout-text {
+		@media (max-width: 480px) {
+			display: none;
+		}
 	}
 </style>

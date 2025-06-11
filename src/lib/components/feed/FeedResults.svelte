@@ -58,10 +58,11 @@
 							{#if entry.metadata.intent}
 								<span class="metadata-separator">•</span>
 								<span class="metadata-item intent-badge">
-									Intent: {entry.metadata.intent}
+									<span class="intent-label">Intent:</span>
+									{entry.metadata.intent}
 									{#if entry.metadata.confidence_score !== undefined}
 										<span class="confidence-score">
-											({(entry.metadata.confidence_score * 100).toFixed(2)}%)
+											({(entry.metadata.confidence_score * 100).toFixed(0)}%)
 										</span>
 									{/if}
 								</span>
@@ -70,7 +71,8 @@
 							{#if entry.metadata.session_context && Object.keys(entry.metadata.session_context).length > 0}
 								<span class="metadata-separator">•</span>
 								<span class="metadata-item context-info">
-									Context: {Object.keys(entry.metadata.session_context).join(', ')}
+									<span class="context-label">Context:</span>
+									{Object.keys(entry.metadata.session_context).join(', ')}
 								</span>
 							{/if}
 
@@ -141,6 +143,11 @@
 		border-radius: m.radius(lg);
 		border-left: 4px solid m.color(primary, 500);
 		position: relative;
+
+		@media (max-width: 768px) {
+			margin-bottom: m.space(4);
+			padding: m.space(3);
+		}
 	}
 
 	.query-label {
@@ -150,6 +157,11 @@
 		margin-bottom: m.space(2);
 		text-transform: uppercase;
 		letter-spacing: 0.05em;
+
+		@media (max-width: 768px) {
+			font-size: m.font-size(xs);
+			margin-bottom: m.space(1);
+		}
 	}
 
 	.query-text {
@@ -158,6 +170,11 @@
 		font-style: italic;
 		margin-bottom: m.space(2);
 		line-height: 1.5;
+
+		@media (max-width: 768px) {
+			font-size: m.font-size(base);
+			margin-bottom: m.space(1);
+		}
 	}
 
 	.query-timestamp {
@@ -212,6 +229,14 @@
 		font-size: m.font-size(xs);
 		color: m.color(gray, 400);
 		opacity: 0.5;
+
+		@media (max-width: 768px) {
+			font-size: 0.5rem; // Much smaller on mobile (8px)
+			gap: m.space(0.5);
+			margin-top: m.space(2);
+			flex-wrap: nowrap;
+			overflow: hidden;
+		}
 	}
 
 	.metadata-item {
@@ -302,16 +327,51 @@
 			position: static;
 			display: block;
 			margin-top: m.space(2);
+			font-size: 0.5rem; // Much smaller on mobile
 		}
 
 		.response-metadata {
-			flex-direction: column;
-			align-items: flex-start;
-			gap: m.space(2);
+			// Keep as single line, don't stack vertically
+			flex-direction: row;
+			align-items: center;
+			gap: m.space(0.5);
 		}
 
 		.metadata-separator {
-			display: none !important;
+			display: inline !important;
+			font-size: 0.5rem;
+		}
+
+		.metadata-item {
+			gap: m.space(0.25);
+			white-space: nowrap;
+		}
+
+		// Hide labels on mobile to save space
+		.intent-label,
+		.context-label {
+			display: none;
+		}
+
+		// Hide less important metadata on mobile
+		.context-info,
+		.processing-time {
+			display: none;
+		}
+
+		// Make remaining items ultra-compact
+		.intent-badge,
+		.timestamp {
+			font-size: 0.5rem;
+		}
+
+		.confidence-score {
+			margin-left: 0;
+		}
+
+		// Only show timestamp and intent on mobile
+		.error-info {
+			font-size: 0.5rem;
 		}
 	}
 </style>

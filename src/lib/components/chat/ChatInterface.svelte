@@ -22,8 +22,8 @@
 		last_activity: new Date()
 	});
 
-	let messagesScrollArea: HTMLDivElement;
-	let messagesListElement: HTMLDivElement;
+	let messagesScrollArea = $state<HTMLDivElement>();
+	let messagesListElement = $state<HTMLDivElement>();
 	let initializationError = $state<string | null>(null);
 	let hasInitialized = $state(false);
 
@@ -251,7 +251,7 @@
 				disabled={conversationState.is_loading ||
 					!conversationState.session_id ||
 					!!initializationError}
-				placeholder="Ask me about your Medicare benefits, drug prices, or plan information..."
+				placeholder="Ask about Medicare benefits, drug prices, or plan information..."
 				onSendMessage={handleSendMessage}
 			/>
 		</div>
