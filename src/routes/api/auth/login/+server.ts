@@ -16,12 +16,12 @@ export const POST: RequestHandler = async ({ request }) => {
 		const body: LoginRequest = await request.json();
 
 		// Validate required fields
-		if (!body.selected_persona) {
+		if (!body.selectedPersona) {
 			throw error(400, 'Persona selection is required');
 		}
 
 		// Find the selected persona
-		const persona = findPersonaByKey(body.selected_persona);
+		const persona = findPersonaByKey(body.selectedPersona);
 		if (!persona) {
 			throw error(404, 'Selected persona not found');
 		}

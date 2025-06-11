@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Root layout for the Medicare Chatbot POC application
+	 * Root layout for the AI Drug Search POC application
 	 */
 	import type { Snippet } from 'svelte';
 	import '../app.scss';

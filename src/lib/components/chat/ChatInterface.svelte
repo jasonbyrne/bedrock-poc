@@ -9,7 +9,7 @@
 		ChatMessageLike as ChatMessageType,
 		ConversationState
 	} from '$lib/types/chatTypes.js';
-	import { initializeChatSession, sendChatMessage } from '$lib/services/chatbotApi.js';
+	import { initializeChatSession, sendMessage } from '$lib/services/chatbotApi.js';
 	import { authToken } from '$lib/stores/authStore.js';
 	import { tick } from 'svelte';
 
@@ -53,7 +53,7 @@
 				throw new Error('No authentication token available');
 			}
 
-			const welcomeResponse = await initializeChatSession(token);
+			const welcomeResponse = await initializeChatSession();
 
 			conversationState.session_id = welcomeResponse.session_id;
 
@@ -148,7 +148,7 @@
 			}
 
 			// Send message to API
-			const response = await sendChatMessage(conversationState.session_id, messageContent, token);
+			const response = await sendMessage(conversationState.session_id, messageContent);
 
 			// Remove typing indicator
 			removeTypingIndicator();

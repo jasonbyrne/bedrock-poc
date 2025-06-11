@@ -1,6 +1,6 @@
 /**
- * Session management service for chatbot conversations
- * Manages in-memory session storage for POC
+ * Session management service for Medicare Chatbot POC
+ * Handles in-memory session storage and lifecycle
  */
 
 import { ChatSession } from '$lib/server/core/chat-session.js';
@@ -16,22 +16,22 @@ const CLEANUP_INTERVAL = 5 * 60 * 1000;
 /**
  * Create a new chat session
  */
-export function createSession(beneficiary_key: number): ChatSession {
-	const session = new ChatSession(beneficiary_key);
-	sessions.set(session.session_id, session);
+export function createSession(beneficiaryKey: number): ChatSession {
+	const session = new ChatSession(beneficiaryKey);
+	sessions.set(session.sessionId, session);
 	return session;
 }
 
 /**
  * Get a session by ID
  */
-export function getSession(session_id: string): ChatSession | null {
-	const session = sessions.get(session_id);
+export function getSession(sessionId: string): ChatSession | null {
+	const session = sessions.get(sessionId);
 	if (!session) return null;
 
 	// Check if session is expired
 	if (session.isExpired(SESSION_TIMEOUT)) {
-		sessions.delete(session_id);
+		sessions.delete(sessionId);
 		return null;
 	}
 
@@ -41,8 +41,8 @@ export function getSession(session_id: string): ChatSession | null {
 /**
  * Update session activity timestamp
  */
-export function updateSessionActivity(session_id: string): boolean {
-	const session = sessions.get(session_id);
+export function updateSessionActivity(sessionId: string): boolean {
+	const session = sessions.get(sessionId);
 	if (!session) return false;
 
 	session.updateActivity();
@@ -52,8 +52,8 @@ export function updateSessionActivity(session_id: string): boolean {
 /**
  * Add a message to a session
  */
-export function addMessageToSession(session_id: string, message: ChatMessage): boolean {
-	const session = sessions.get(session_id);
+export function addMessageToSession(sessionId: string, message: ChatMessage): boolean {
+	const session = sessions.get(sessionId);
 	if (!session) return false;
 
 	session.addMessage(message);
@@ -64,11 +64,11 @@ export function addMessageToSession(session_id: string, message: ChatMessage): b
  * Update session intent and slots
  */
 export function updateSessionContext(
-	session_id: string,
+	sessionId: string,
 	intent?: string,
 	slots?: Record<string, unknown>
 ): boolean {
-	const session = sessions.get(session_id);
+	const session = sessions.get(sessionId);
 	if (!session) return false;
 
 	session.updateContext({ intent, slots });
@@ -81,13 +81,13 @@ export function updateSessionContext(
 function cleanupExpiredSessions(): void {
 	const expired: string[] = [];
 
-	for (const [session_id, session] of sessions.entries()) {
+	for (const [sessionId, session] of sessions.entries()) {
 		if (session.isExpired(SESSION_TIMEOUT)) {
-			expired.push(session_id);
+			expired.push(sessionId);
 		}
 	}
 
-	expired.forEach((session_id) => sessions.delete(session_id));
+	expired.forEach((sessionId) => sessions.delete(sessionId));
 
 	if (expired.length > 0) {
 		console.log(`Cleaned up ${expired.length} expired chat sessions`);

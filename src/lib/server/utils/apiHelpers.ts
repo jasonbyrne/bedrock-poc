@@ -11,30 +11,36 @@ import { ChatSession } from '$lib/server/core/chat-session.js';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
 
 /**
- * Create a standardized error JSON response
+ * Create a standardized error response
  */
-export function errorJson(error: string, code: string, status: number): Response {
-	return json({ success: false, error, code }, { status });
+export function errorJson(message: string, code: string = 'ERROR', status: number = 400) {
+	return json(
+		{
+			success: false,
+			error: message,
+			code
+		},
+		{ status }
+	);
 }
 
 /**
- * Require authentication for the request
- * Returns the user payload or an error response
+ * Require authentication and return user payload
  */
 export function requireAuth(request: Request): AuthJwtPayload | Response {
-	const userPayload = authenticateRequest(request);
-	if (!userPayload) {
-		return errorJson('Unauthorized - Invalid or missing JWT token', 'AUTH_ERROR', 401);
+	const user = authenticateRequest(request);
+	if (!user) {
+		return errorJson('Authentication required', 'AUTH_ERROR', 401);
 	}
-	return userPayload;
+	return user;
 }
 
 /**
- * Require and validate a session by ID
+ * Require a valid session by ID
  * Returns the session or an error response
  */
-export function requireSession(session_id: string): ChatSession | Response {
-	const session = getSession(session_id);
+export function requireSession(sessionId: string): ChatSession | Response {
+	const session = getSession(sessionId);
 	if (!session) {
 		return errorJson('Session not found or expired', 'SESSION_ERROR', 404);
 	}
@@ -42,14 +48,13 @@ export function requireSession(session_id: string): ChatSession | Response {
 }
 
 /**
- * Require that the session belongs to the authenticated user
- * Returns true or an error response
+ * Require session ownership by authenticated user
  */
 export function requireSessionOwner(session: ChatSession, user: AuthJwtPayload): true | Response {
-	if (session.beneficiary_key !== user.beneficiary_key) {
+	if (session.beneficiaryKey !== user.beneficiaryKey) {
 		return errorJson(
 			'Unauthorized - Session does not belong to authenticated user',
-			'SESSION_AUTH_ERROR',
+			'OWNERSHIP_ERROR',
 			403
 		);
 	}

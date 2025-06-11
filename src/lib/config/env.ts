@@ -6,28 +6,45 @@
 
 // Public app configuration
 export const publicEnv = {
-  app: {
-    name: import.meta.env.PUBLIC_APP_NAME || 'Medicare Chatbot',
-    version: import.meta.env.PUBLIC_APP_VERSION || '1.0.0',
-    debug: import.meta.env.PUBLIC_DEBUG_MODE === 'true',
-  },
-  api: {
-    baseUrl: import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:5173/api',
-  },
-  ui: {
-    maxMessageLength: parseInt(import.meta.env.PUBLIC_MAX_MESSAGE_LENGTH || '500', 10),
-    typingDelayMs: parseInt(import.meta.env.PUBLIC_TYPING_DELAY_MS || '1000', 10),
-  },
+	app: {
+		name: import.meta.env.PUBLIC_APP_NAME || 'AI Drug Search POC',
+		version: import.meta.env.PUBLIC_APP_VERSION || '1.0.0',
+		debug: import.meta.env.PUBLIC_DEBUG_MODE === 'true'
+	},
+	api: {
+		baseUrl: import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:5173/api'
+	},
+	ui: {
+		maxMessageLength: parseInt(import.meta.env.PUBLIC_MAX_MESSAGE_LENGTH || '500', 10),
+		typingDelayMs: parseInt(import.meta.env.PUBLIC_TYPING_DELAY_MS || '1000', 10)
+	}
 } as const;
 
 // Type-safe public environment variables
-type PublicEnv = typeof publicEnv;
+type PublicEnvType = typeof publicEnv;
 
 declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace App {
-    interface PublicEnv extends PublicEnv {}
-  }
+	// eslint-disable-next-line @typescript-eslint/no-namespace
+	namespace App {
+		type PublicEnv = PublicEnvType;
+	}
 }
+
+// Helper functions for consistent title formatting
+export const getPageTitle = (page?: string): string => {
+	return page ? `${publicEnv.app.name} - ${page}` : publicEnv.app.name;
+};
+
+export const getPageDescription = (type: 'default' | 'search' | 'chat' = 'default'): string => {
+	const baseName = publicEnv.app.name;
+	switch (type) {
+		case 'search':
+			return `${baseName} - Conversational search interface`;
+		case 'chat':
+			return `${baseName} - Chat conversation interface`;
+		default:
+			return `${baseName} - AWS Bedrock Integration Demo`;
+	}
+};
 
 export default publicEnv;

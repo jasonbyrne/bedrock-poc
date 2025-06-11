@@ -1,6 +1,6 @@
 <script lang="ts">
 	/**
-	 * Login form component for Medicare Chatbot POC
+	 * Login form component for AI Drug Search POC
 	 */
 
 	import { goto } from '$app/navigation';
@@ -11,6 +11,7 @@
 	import { setAuth } from '$lib/stores/authStore.js';
 	import { decodeMockJwt } from '$lib/services/personaService.js';
 	import type { LoginRequest, LoginResponse } from '$lib/types/authTypes.js';
+	import { publicEnv } from '$lib/config/env.js';
 
 	// Form state using Svelte 5 runes
 	let email = $state('');
@@ -43,7 +44,7 @@
 			const loginRequest: LoginRequest = {
 				email: email || undefined,
 				password: password || undefined,
-				selected_persona: Number(selectedPersona)
+				selectedPersona: Number(selectedPersona)
 			};
 
 			// Call mock auth API
@@ -72,8 +73,8 @@
 			// Set authentication in store
 			setAuth(result.token, payload);
 
-			// Redirect to chat
-			await goto('/chat');
+			// Redirect to feed
+			await goto('/feed');
 		} catch (err) {
 			console.error('Login error:', err);
 			error = 'An unexpected error occurred. Please try again.';
@@ -106,7 +107,7 @@
 					</svg>
 				</div>
 
-				<h2 class="login-title">Medicare Chatbot POC</h2>
+				<h2 class="login-title">{publicEnv.app.name}</h2>
 				<p class="login-subtitle">Select a persona to test the chatbot experience</p>
 
 				<!-- Info Banner -->
@@ -216,7 +217,7 @@
 
 			<!-- Footer -->
 			<div class="login-footer">
-				<p class="footer-text">Medicare Chatbot POC • AWS Bedrock Integration Demo</p>
+				<p class="footer-text">{publicEnv.app.name} • AWS Bedrock Integration Demo</p>
 			</div>
 		</div>
 	</div>

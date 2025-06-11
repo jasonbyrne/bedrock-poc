@@ -17,7 +17,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (userPayload instanceof Response) return userPayload;
 
 		// Create a new session for this user
-		const session = createSession(userPayload.beneficiary_key);
+		const session = createSession(userPayload.beneficiaryKey);
 
 		// Generate personalized welcome message
 		const welcomeContent = getWelcomeMessage(userPayload);
@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const response: ChatbotWelcomeResponse = {
 			success: true,
-			session_id: session.session_id,
+			session_id: session.sessionId,
 			message: welcomeMessage
 		};
 
