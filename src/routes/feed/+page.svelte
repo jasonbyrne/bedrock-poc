@@ -1,13 +1,13 @@
 <script lang="ts">
 	/**
-	 * Chat page with authentication protection
+	 * Feed-style search page with persistent results and bottom input
 	 */
 
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { browser } from '$app/environment';
 	import Header from '$lib/components/ui/Header.svelte';
-	import ChatInterface from '$lib/components/chat/ChatInterface.svelte';
+	import SearchFeed from '$lib/components/feed/SearchFeed.svelte';
 	import { authState, isAuthenticated, initializeAuth } from '$lib/stores/authStore.js';
 	import { getPageTitle, getPageDescription, publicEnv } from '$lib/config/env.js';
 
@@ -35,8 +35,8 @@
 </script>
 
 <svelte:head>
-	<title>{getPageTitle('Chat Interface')}</title>
-	<meta name="description" content={getPageDescription('chat')} />
+	<title>{getPageTitle('Search Feed')}</title>
+	<meta name="description" content={getPageDescription('search')} />
 </svelte:head>
 
 {#if $authState === 'loading'}
@@ -48,12 +48,12 @@
 		</div>
 	</div>
 {:else if $authState === 'authenticated'}
-	<!-- Authenticated chat interface -->
-	<div class="chat-page">
+	<!-- Authenticated feed interface -->
+	<div class="feed-page">
 		<Header title={publicEnv.app.name} />
 
-		<main class="chat-main">
-			<ChatInterface />
+		<main class="feed-main">
+			<SearchFeed />
 		</main>
 	</div>
 {:else}
@@ -61,7 +61,7 @@
 	<div class="access-denied">
 		<div class="denied-content">
 			<h2 class="denied-title">Access Denied</h2>
-			<p class="denied-text">Please log in to access the chat interface.</p>
+			<p class="denied-text">Please log in to access the search feed.</p>
 			<a href="/" class="denied-link">Return to Login</a>
 		</div>
 	</div>
@@ -95,17 +95,18 @@
 		color: m.color(gray, 600);
 	}
 
-	.chat-page {
+	.feed-page {
 		min-height: 100vh;
 		display: flex;
 		flex-direction: column;
 		background-color: m.color(gray, 50);
 	}
 
-	.chat-main {
+	.feed-main {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
+		position: relative;
 	}
 
 	.access-denied {

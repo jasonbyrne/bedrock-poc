@@ -4,48 +4,54 @@ import type { ChatSession } from '$lib/server/core/chat-session';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
 
 abstract class Controller {
+	/**
+	 * The minimum confidence score required to handle the intent.
+	 * If null, the intent will be handled regardless of confidence.
+	 */
 	protected minConfidence: number | null = null;
 
-	protected started_at: number;
+	/**
+	 * The time the intent was started.
+	 */
+	protected startedAt: number;
+
+	/**
+	 * The session object.
+	 */
 	protected session: ChatSession;
 
 	constructor(params: IntentHandlerParams) {
-		this.started_at = params.started_at;
-		this.session = params.session;
-
 		// Validate required session state
-		if (!this.session.user) {
+		if (!params.session.user) {
 			throw new Error('Controller requires authenticated user in session');
 		}
-		if (!this.session.current_intent) {
+		if (!params.session.currentIntent) {
 			throw new Error('Controller requires intent in session');
 		}
+		// Set session state
+		this.startedAt = params.started_at;
+		this.session = params.session;
 	}
 
-	// Getters to access session data - now guaranteed to exist
-	protected get confidence(): number {
-		return this.session.current_confidence || 0;
+	public get user(): AuthJwtPayload {
+		// We cast this here because we know the user is authenticated and it won't be null
+		return this.session.user as AuthJwtPayload;
 	}
 
-	protected get intent(): string {
-		return this.session.current_intent!.name;
-	}
-
-	protected get slots(): Record<string, unknown> {
-		return this.session.collected_slots;
-	}
-
-	protected get user(): AuthJwtPayload {
-		return this.session.user!;
-	}
-
-	protected get user_message(): string {
-		return this.session.user_message || '';
+	protected reply(payload: string | (Record<string, unknown> & { message: string })): MessageReply {
+		if (typeof payload === 'string') {
+			return {
+				message: payload
+			};
+		}
+		return {
+			message: payload.message
+		};
 	}
 
 	public isConfident(): boolean {
 		if (!this.minConfidence) return true;
-		return this.confidence >= this.minConfidence;
+		return (this.session.currentConfidence || 0) >= this.minConfidence;
 	}
 
 	public abstract handle(): Promise<MessageReply>;
@@ -58,29 +64,28 @@ abstract class Controller {
 
 	protected slotsWeHave(): string[] {
 		// Slots that have truthy values
-		const haveSlots = Object.keys(this.slots).filter(
-			(slot) => this.slots[slot as keyof typeof this.slots]
+		const haveSlots = Object.keys(this.session.collectedSlots).filter(
+			(slot) => this.session.collectedSlots[slot as keyof typeof this.session.collectedSlots]
 		);
 		console.log('[DEBUG] Slots we have:', haveSlots);
-		console.log('[DEBUG] Slots :', this.slots);
+		console.log('[DEBUG] Slots :', this.session.collectedSlots);
 		return haveSlots;
 	}
 
 	protected slotsWeAreMissing(): string[] {
 		const haveSlots = this.slotsWeHave();
 		return (
-			this.session.current_intent?.requiredSlots?.filter((slot) => !haveSlots.includes(slot)) || []
+			this.session.currentIntent?.requiredSlots?.filter((slot) => !haveSlots.includes(slot)) || []
 		);
 	}
 
 	protected isMissingRequiredSlots(): boolean {
-		return !this.haveAllRequiredSlots();
+		return this.slotsWeAreMissing().length > 0;
 	}
 
 	protected haveAllRequiredSlots(): boolean {
-		if (!this.session.current_intent?.requiredSlots?.length) return true;
-		const haveSlots = this.slotsWeHave();
-		return this.session.current_intent?.requiredSlots.length === haveSlots.length;
+		if (!this.session.currentIntent?.requiredSlots?.length) return true;
+		return this.slotsWeAreMissing().length === 0;
 	}
 }
 

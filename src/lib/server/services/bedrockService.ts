@@ -86,7 +86,6 @@ export interface ClarificationMessageArgs {
  */
 export interface MissingInformationArgs {
 	session: ChatSession;
-	intent: string;
 	topic: string;
 	providedSlots: string[];
 	missingSlots: string[];
@@ -235,7 +234,7 @@ export class BedrockService {
 	public async generateMissingInformationMessage(
 		args: MissingInformationArgs
 	): Promise<BedrockResponse> {
-		const { session, intent, topic, providedSlots, missingSlots } = args;
+		const { session, topic, providedSlots, missingSlots } = args;
 
 		const currentUserMessage = session.getLastMessage('user');
 		const userInput = currentUserMessage?.content || '';
@@ -244,7 +243,7 @@ export class BedrockService {
 		const previousMessages = this.prepareMessagesForClaude(contextMessages);
 
 		const systemPrompt = createMissingInformationPrompt({
-			intent,
+			intent: session.intentName,
 			topic,
 			providedSlots,
 			missingSlots
@@ -262,22 +261,6 @@ export class BedrockService {
 				isStructured: false // Natural conversational response
 			}
 		);
-	}
-
-	// Legacy method for backward compatibility
-	public async generateNeedMoreInfoResponse(
-		session: ChatSession,
-		topic: string,
-		providedSlots: string[],
-		missingSlots: string[]
-	): Promise<BedrockResponse> {
-		return this.generateMissingInformationMessage({
-			session,
-			intent: 'unknown',
-			topic,
-			providedSlots,
-			missingSlots
-		});
 	}
 
 	/**
@@ -306,7 +289,7 @@ export class BedrockService {
 		}
 
 		try {
-			const messages = this.buildMessages(systemPrompt, previousMessages, userInput);
+			const messages = this.buildMessages(previousMessages, userInput);
 
 			// Different parameters for structured vs conversational responses
 			const bodyParams = {
@@ -334,67 +317,6 @@ export class BedrockService {
 				contentType: 'application/json',
 				accept: 'application/json',
 				body: JSON.stringify(bodyParams)
-			};
-
-			const command = new InvokeModelCommand(params);
-			const response = await this.client.send(command);
-			const responseBody = JSON.parse(Buffer.from(response.body as Uint8Array).toString('utf-8'));
-			const latency = Date.now() - startTime;
-			const content = this.parseResponse(responseBody);
-
-			return {
-				content,
-				metadata: {
-					latency,
-					model: this.modelId
-				}
-			};
-		} catch (error) {
-			consoleLogger.error('Error generating Bedrock response', error);
-			return {
-				content: '',
-				error: error instanceof Error ? error : new Error('Unknown error'),
-				metadata: {
-					latency: Date.now() - startTime,
-					model: this.modelId
-				}
-			};
-		}
-	}
-
-	/**
-	 * Core method to generate responses from Bedrock.
-	 */
-	private async generateResponse(args: BedrockPromptArgs): Promise<BedrockResponse> {
-		const { systemPrompt, previousMessages, userInput } = args;
-		const startTime = Date.now();
-
-		if (this.isMock) {
-			return {
-				content: '[MOCK] This is a mock Bedrock response.',
-				metadata: {
-					latency: 0,
-					model: this.modelId
-				}
-			};
-		}
-
-		try {
-			const messages = this.buildMessages(systemPrompt, previousMessages, userInput);
-			const params: InvokeModelCommandInput = {
-				modelId: this.modelId,
-				contentType: 'application/json',
-				accept: 'application/json',
-				body: JSON.stringify({
-					anthropic_version: 'bedrock-2023-05-31',
-					messages,
-					max_tokens: 1024,
-					system: systemPrompt,
-					temperature: 0.1,
-					top_p: 0.9,
-					top_k: 50,
-					stop_sequences: ['Human:', 'Assistant:']
-				})
 			};
 
 			const command = new InvokeModelCommand(params);
@@ -555,7 +477,6 @@ export class BedrockService {
 	 * Build Claude 3 Messages API array from system prompt, previous messages, and user input.
 	 */
 	private buildMessages(
-		systemPrompt: string,
 		previousMessages: BedrockMessage[],
 		userInput: string
 	): Array<{ role: 'user' | 'assistant'; content: string }> {

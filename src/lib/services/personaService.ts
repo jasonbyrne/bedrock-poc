@@ -7,11 +7,11 @@ import type { MedicareBeneficiary } from '$lib/types/persona';
  */
 export function getPersonaOptions(): PersonaOption[] {
 	return STATIC_PERSONAS.map((persona) => {
-		const age = new Date().getFullYear() - new Date(persona.birth_date).getFullYear();
+		const age = new Date().getFullYear() - new Date(persona.birthDate).getFullYear();
 		return {
-			value: persona.beneficiary_key,
-			label: `${persona.first_name} ${persona.last_name} (${age})`,
-			description: `${persona.plan_type} • ${persona.mailing_address.city}, ${persona.mailing_address.state}`
+			value: persona.beneficiaryKey,
+			label: `${persona.firstName} ${persona.lastName} (${age})`,
+			description: `${persona.planType} • ${persona.mailingAddress.city}, ${persona.mailingAddress.state}`
 		};
 	});
 }
@@ -19,8 +19,8 @@ export function getPersonaOptions(): PersonaOption[] {
 /**
  * Find a persona by beneficiary key
  */
-export function findPersonaByKey(beneficiary_key: number): MedicareBeneficiary | undefined {
-	return STATIC_PERSONAS.find((persona) => persona.beneficiary_key === beneficiary_key);
+export function findPersonaByKey(beneficiaryKey: number): MedicareBeneficiary | undefined {
+	return STATIC_PERSONAS.find((persona) => persona.beneficiaryKey === beneficiaryKey);
 }
 
 /**

@@ -9,33 +9,41 @@ function generateSessionId(): string {
 }
 
 export class ChatSession {
-	session_id: string;
-	beneficiary_key: number;
-	created_at: Date;
-	last_activity: Date;
+	sessionId: string;
+	beneficiaryKey: number;
+	createdAt: Date;
+	lastActivity: Date;
 	messages: ChatMessage[] = [];
-	current_intent?: Intent;
-	current_confidence?: number;
-	collected_slots: Record<string, unknown> = {};
+	currentIntent?: Intent;
+	currentConfidence?: number;
+	collectedSlots: Record<string, unknown> = {};
 	user?: AuthJwtPayload;
-	user_message?: string;
+	userMessage?: string;
 
-	constructor(beneficiary_key: number, session_id?: string) {
-		this.session_id = session_id || generateSessionId();
-		this.beneficiary_key = beneficiary_key;
-		this.created_at = new Date();
-		this.last_activity = new Date();
+	constructor(beneficiaryKey: number, sessionId?: string) {
+		this.sessionId = sessionId || generateSessionId();
+		this.beneficiaryKey = beneficiaryKey;
+		this.createdAt = new Date();
+		this.lastActivity = new Date();
 		this.messages = [];
-		this.current_intent = undefined;
-		this.current_confidence = undefined;
-		this.collected_slots = {};
+		this.currentIntent = undefined;
+		this.currentConfidence = undefined;
+		this.collectedSlots = {};
 		this.user = undefined;
-		this.user_message = undefined;
+		this.userMessage = undefined;
+	}
+
+	public get intentName(): string {
+		return this.currentIntent?.name ?? 'Unknown';
+	}
+
+	public get intentConfidence(): number {
+		return this.currentConfidence ?? 0;
 	}
 
 	public addMessage(message: ChatMessage): void {
 		this.messages.push(message);
-		this.last_activity = new Date();
+		this.lastActivity = new Date();
 	}
 
 	public getMessages(): ChatMessage[] {
@@ -43,7 +51,7 @@ export class ChatSession {
 	}
 
 	public updateActivity(): void {
-		this.last_activity = new Date();
+		this.lastActivity = new Date();
 	}
 
 	/**
@@ -57,7 +65,7 @@ export class ChatSession {
 	 * Set the current user message being processed
 	 */
 	public setCurrentUserMessage(message: string): void {
-		this.user_message = message;
+		this.userMessage = message;
 	}
 
 	/**
@@ -65,25 +73,25 @@ export class ChatSession {
 	 */
 	private shouldClearSlots(newIntentName?: string, newSlots?: Record<string, unknown>): boolean {
 		// If no current intent or no new slots, don't clear
-		if (!this.current_intent || !newSlots) return false;
+		if (!this.currentIntent || !newSlots) return false;
 
 		// If intent changed, clear slots
-		if (newIntentName && newIntentName !== this.current_intent.name) {
+		if (newIntentName && newIntentName !== this.currentIntent.name) {
 			console.log(
-				`[DEBUG] Intent changed from "${this.current_intent.name}" to "${newIntentName}" - clearing all slots`
+				`[DEBUG] Intent changed from "${this.currentIntent.name}" to "${newIntentName}" - clearing all slots`
 			);
 			return true;
 		}
 
 		// Check for critical slot changes within the same intent
-		const currentIntent = newIntentName || this.current_intent.name;
+		const currentIntent = newIntentName || this.currentIntent.name;
 		const intentDefinition = getIntentByName(currentIntent);
 
 		if (!intentDefinition?.criticalSlots) return false;
 
 		// Check if any critical slot has changed
 		for (const criticalSlot of intentDefinition.criticalSlots) {
-			const oldValue = this.collected_slots[criticalSlot];
+			const oldValue = this.collectedSlots[criticalSlot];
 			const newValue = newSlots[criticalSlot];
 
 			// If we have both old and new values and they're different, clear slots
@@ -103,7 +111,7 @@ export class ChatSession {
 	 */
 	private clearSlots(): void {
 		console.log('[DEBUG] Clearing all slots - starting fresh');
-		this.collected_slots = {};
+		this.collectedSlots = {};
 	}
 
 	public updateContext(context: {
@@ -122,14 +130,14 @@ export class ChatSession {
 		if (intent) {
 			const intentDefinition = getIntentByName(intent);
 			if (intentDefinition) {
-				this.current_intent = intentDefinition;
+				this.currentIntent = intentDefinition;
 			}
 		}
-		if (confidence) this.current_confidence = confidence;
+		if (confidence) this.currentConfidence = confidence;
 
 		// Merge new slots with existing ones
 		if (slots) {
-			this.collected_slots = { ...this.collected_slots, ...slots };
+			this.collectedSlots = { ...this.collectedSlots, ...slots };
 		}
 
 		this.updateActivity();
@@ -162,7 +170,7 @@ export class ChatSession {
 
 	public isExpired(timeoutMs: number): boolean {
 		const now = new Date();
-		const timeSinceActivity = now.getTime() - this.last_activity.getTime();
+		const timeSinceActivity = now.getTime() - this.lastActivity.getTime();
 		return timeSinceActivity > timeoutMs;
 	}
 }

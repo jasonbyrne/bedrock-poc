@@ -1,5 +1,6 @@
 import type { MessageReply } from '$lib/types/message-reply';
 import Controller from '$lib/server/core/controller';
+import type { ChatSession } from '$lib/server/core/chat-session';
 import {
 	medicalComprehendService,
 	type DrugEntityExtractionResult
@@ -11,32 +12,38 @@ import { toString } from '$lib/server/utils/string';
 export class GetSingleDrugPriceController extends Controller {
 	protected minConfidence = 0.8;
 
+	/**
+	 * Response when we are not confident in the intent.
+	 */
 	public async clarification(): Promise<MessageReply> {
-		return {
-			message: 'I think you are asking about a drug price. Is that right?'
-		};
+		return this.reply('I think you are asking about a drug price. Is that right?');
 	}
 
+	/**
+	 * Response when they didn't tell us the name of the drug.
+	 */
 	private noDrugName(): MessageReply {
-		return {
-			message:
-				"Which drug are you asking about? Please provide the name of the medication you'd like pricing information for."
-		};
+		return this.reply(
+			"Which drug are you asking about? Please provide the name of the medication you'd like pricing information for."
+		);
 	}
 
+	/**
+	 * Find the drug in the user's beneficiary medications.
+	 * @param drugName - The name of the drug to find.
+	 * @returns The medication if found, otherwise null.
+	 */
 	private findDrugInBeneficiaryMedications(drugName: string): Medication | null {
-		const medications = this.user.medications;
+		const medications = this.user.medications ?? [];
 
 		// Return null if no medications on file
-		if (!medications.length) {
-			return null;
-		}
+		if (!medications.length) return null;
 
 		// Normalize to lowercase and remove any non-alphanumeric characters
 		const normalize = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
 		const normalizedDrugName = normalize(drugName);
 		const foundMedication = medications.find(
-			(medication) => normalize(medication.name) === normalizedDrugName
+			(medication) => normalize(medication.drugName) === normalizedDrugName
 		);
 		console.log('[DEBUG] Found medication:', foundMedication);
 		return foundMedication ?? null;
@@ -53,56 +60,62 @@ export class GetSingleDrugPriceController extends Controller {
 		if (!beneficiaryMedication) return drugInfo;
 		return {
 			...drugInfo,
-			dosage: toString(drugInfo.dosage || beneficiaryMedication.dosage || this.slots.dosage, ''),
-			drugForm: toString(
-				drugInfo.drugForm || beneficiaryMedication.form || this.slots.drug_form,
+			dosage: toString(
+				drugInfo.dosage || beneficiaryMedication.dosage || this.session.collectedSlots.dosage,
 				''
 			),
-			route: toString(drugInfo.route || beneficiaryMedication.route || this.slots.route, ''),
+			drugForm: toString(
+				drugInfo.drugForm ||
+					beneficiaryMedication.drugForm ||
+					this.session.collectedSlots.drug_form,
+				''
+			),
+			route: toString(
+				drugInfo.route || beneficiaryMedication.route || this.session.collectedSlots.route,
+				''
+			),
 			frequency: toString(
-				drugInfo.frequency || beneficiaryMedication.frequency || this.slots.frequency,
+				drugInfo.frequency ||
+					beneficiaryMedication.frequency ||
+					this.session.collectedSlots.frequency,
 				''
 			),
 			duration: toString(
-				drugInfo.duration || beneficiaryMedication.duration || this.slots.duration,
+				drugInfo.duration || beneficiaryMedication.duration || this.session.collectedSlots.duration,
+				'monthly' // Default to monthly if not provided
+			),
+			rate: toString(
+				drugInfo.rate || beneficiaryMedication.rate || this.session.collectedSlots.rate,
 				''
 			),
-			rate: toString(drugInfo.rate || beneficiaryMedication.rate || this.slots.rate, ''),
 			strength: toString(
-				drugInfo.strength || beneficiaryMedication.strength || this.slots.strength,
+				drugInfo.strength || beneficiaryMedication.strength || this.session.collectedSlots.strength,
 				''
 			)
 		};
 	}
 
 	private async generateNeedMoreInfoResponse(): Promise<MessageReply> {
-		const missingSlots = this.slotsWeAreMissing();
-		const haveSlots = this.slotsWeHave();
-		console.log('[DEBUG] Missing slots:', missingSlots);
-		console.log('[DEBUG] Have slots:', haveSlots);
-		console.log('[DEBUG] Required slots:', this.session.current_intent?.requiredSlots);
-		const clarification = await bedrockService.generateNeedMoreInfoResponse(
-			this.session,
-			'drug price',
-			haveSlots,
-			missingSlots
-		);
-		return {
-			message: clarification.content
-		};
+		const clarification = await bedrockService.generateMissingInformationMessage({
+			session: this.session,
+			topic: 'drug price',
+			providedSlots: this.slotsWeHave(),
+			missingSlots: this.slotsWeAreMissing()
+		});
+		return this.reply(clarification.content);
 	}
 
 	async handle(): Promise<MessageReply> {
 		// Drug name is required to proceed
-		const drugName = this.slots.drug_name as string | undefined;
+		const drugName = this.session.collectedSlots.drug_name as string | undefined;
 		if (!drugName) return this.noDrugName();
 
 		// Look up the drug information in AWS Comprehend Medical
 		console.log('[DEBUG] Processing drug name with Medical Comprehend:', drugName);
 		const medicalComprehendDrugInfo = await medicalComprehendService.extractDrugInformation(
 			`
-				Slots: ${JSON.stringify(this.slots)}
-				User message: ${this.user_message}
+				Slots: ${JSON.stringify(this.session.collectedSlots)}
+				User message: ${this.session.userMessage || ''}
 			`
 		);
 		const drugInfo = this.backfillMedicationInfo(medicalComprehendDrugInfo);
@@ -111,7 +124,7 @@ export class GetSingleDrugPriceController extends Controller {
 			console.log('[INFO] Continuing with available drug information');
 		}
 		console.log('[DEBUG] Medical Comprehend extraction results:', {
-			originalInput: this.user_message,
+			originalInput: this.session.userMessage || '',
 			extractedDrugName: drugInfo.drugName,
 			normalizedDrugName: drugInfo.normalizedDrugName,
 			rxNormCode: drugInfo.rxNormCode,
@@ -133,7 +146,7 @@ export class GetSingleDrugPriceController extends Controller {
 		});
 		// Update session slots with comprehensive normalized information
 		const updatedSlots = {
-			...this.slots,
+			...this.session.collectedSlots,
 			drug_name: drugInfo.drugName || drugName,
 			...(drugInfo.dosage && { dosage: drugInfo.dosage }),
 			...(drugInfo.drugForm && { drug_form: drugInfo.drugForm }),
@@ -153,9 +166,8 @@ export class GetSingleDrugPriceController extends Controller {
 		console.log('[DEBUG] Updated slots:', updatedSlots);
 		// Update the session context with enriched slot data
 		this.session.updateContext({
-			intent: this.intent,
 			slots: updatedSlots,
-			confidence: this.confidence
+			confidence: this.session.currentConfidence
 		});
 		// Do we have all of the required info
 		if (this.isMissingRequiredSlots()) {
@@ -259,6 +271,6 @@ export class GetSingleDrugPriceController extends Controller {
 			response += `\n*Note: I normalized "${drugName}" to "${normalizedDrugName}" using RxNorm for accurate pricing.*`;
 		}
 
-		return { message: response };
+		return this.reply(response);
 	}
 }

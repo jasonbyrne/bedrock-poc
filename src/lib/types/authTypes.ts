@@ -11,7 +11,7 @@ export interface AuthJwtPayload extends MedicareBeneficiary {
 export interface LoginRequest {
 	email?: string; // Optional for show
 	password?: string; // Optional for show
-	selected_persona: number; // beneficiary_key
+	selectedPersona: number; // beneficiaryKey
 }
 
 export interface LoginResponse {

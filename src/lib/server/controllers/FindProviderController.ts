@@ -13,7 +13,7 @@ export class FindProviderController extends Controller {
 
 	async handle(): Promise<MessageReply> {
 		// If we don't know the type of provider, ask them
-		if (!this.slots.provider_type) {
+		if (!this.session.collectedSlots.provider_type) {
 			return {
 				message:
 					'It sounds like you would like to find a provider. What type of provider are you looking for?'
@@ -21,8 +21,12 @@ export class FindProviderController extends Controller {
 		}
 
 		// Extract provider type from slots if available
-		const providerType = this.slots.provider_type ? String(this.slots.provider_type) : 'doctor';
-		const location = this.slots.location ? String(this.slots.location) : 'your area';
+		const providerType = this.session.collectedSlots.provider_type
+			? String(this.session.collectedSlots.provider_type)
+			: 'doctor';
+		const location = this.session.collectedSlots.location
+			? String(this.session.collectedSlots.location)
+			: 'your area';
 
 		return {
 			message: `I can help you find a ${providerType} in ${location}. Here's what I found: (This is a placeholder response that would typically include provider search results)`

@@ -1,6 +1,5 @@
 /**
- * Chatbot API client service
- * Handles communication with chatbot endpoints
+ * Client-side API service for chatbot interactions
  */
 
 import type {
@@ -8,71 +7,58 @@ import type {
 	ChatbotMessageRequest,
 	ChatbotMessageResponse,
 	ApiError
-} from '$lib/types/chatTypes.js';
+} from '$lib/types/chatTypes';
+import { publicEnv } from '$lib/config/env';
+
+const AUTH_TOKEN_KEY = 'medicare_chatbot_auth_token';
 
 /**
- * Base API request with auth header
+ * Initialize a new chatbot session
  */
-async function apiRequest<T>(
-	endpoint: string,
-	options: RequestInit = {},
-	token?: string
-): Promise<T> {
-	const headers = new Headers(options.headers);
-	headers.set('Content-Type', 'application/json');
-
-	if (token) {
-		headers.set('Authorization', `Bearer ${token}`);
-	}
-
-	const response = await fetch(endpoint, {
-		...options,
-		headers
+export async function initializeChatSession(): Promise<ChatbotWelcomeResponse> {
+	const response = await fetch(`${publicEnv.api.baseUrl}/chatbot/welcome`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`
+		}
 	});
 
-	const data = await response.json();
-
 	if (!response.ok) {
-		throw new Error(data.error || `HTTP ${response.status}`);
+		const error: ApiError = await response.json();
+		throw new Error(error.error || 'Failed to initialize chat session');
 	}
 
-	return data;
-}
-
-/**
- * Initialize a new chat session and get welcome message
- */
-export async function initializeChatSession(token: string): Promise<ChatbotWelcomeResponse> {
-	return apiRequest<ChatbotWelcomeResponse>(
-		'/api/chatbot/welcome',
-		{
-			method: 'POST'
-		},
-		token
-	);
+	return response.json();
 }
 
 /**
  * Send a message to the chatbot
  */
-export async function sendChatMessage(
+export async function sendMessage(
 	sessionId: string,
-	message: string,
-	token: string
+	message: string
 ): Promise<ChatbotMessageResponse> {
 	const requestBody: ChatbotMessageRequest = {
 		session_id: sessionId,
 		message
 	};
 
-	return apiRequest<ChatbotMessageResponse>(
-		'/api/chatbot/message',
-		{
-			method: 'POST',
-			body: JSON.stringify(requestBody)
+	const response = await fetch(`${publicEnv.api.baseUrl}/chatbot/message`, {
+		method: 'POST',
+		headers: {
+			'Content-Type': 'application/json',
+			Authorization: `Bearer ${localStorage.getItem(AUTH_TOKEN_KEY)}`
 		},
-		token
-	);
+		body: JSON.stringify(requestBody)
+	});
+
+	if (!response.ok) {
+		const error: ApiError = await response.json();
+		throw new Error(error.error || 'Failed to send message');
+	}
+
+	return response.json();
 }
 
 /**

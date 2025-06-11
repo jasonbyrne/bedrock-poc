@@ -4,11 +4,12 @@
 	 */
 
 	import LoginForm from '$lib/components/ui/LoginForm.svelte';
+	import { getPageTitle, getPageDescription } from '$lib/config/env.js';
 </script>
 
 <svelte:head>
-	<title>Medicare Chatbot POC - Login</title>
-	<meta name="description" content="Medicare Chatbot POC - AWS Bedrock Integration Demo" />
+	<title>{getPageTitle('Login')}</title>
+	<meta name="description" content={getPageDescription('default')} />
 </svelte:head>
 
 <LoginForm />

@@ -15,7 +15,7 @@ export const INTENTS: Intent[] = [
 			'route'
 		],
 		criticalSlots: ['drug_name'],
-		requiredSlots: ['drug_name', 'dosage', 'duration', 'frequency'],
+		requiredSlots: ['drug_name', 'dosage', 'frequency'],
 		examples: [
 			'What is the [duration] cost for [dosage]mg of [drug_name]?',
 			'How much does [dosage] of [drug_name] cost for [duration]?',

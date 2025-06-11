@@ -42,12 +42,12 @@ export async function routeIntent(
 		})();
 		const assistantMessage = createAssistantMessage({
 			content: content.message,
-			intent: params.session.current_intent?.name || 'Unknown',
-			slots: params.session.collected_slots,
-			confidence: params.session.current_confidence || 0,
+			intent: params.session.currentIntent?.name || 'Unknown',
+			slots: params.session.collectedSlots,
+			confidence: params.session.currentConfidence || 0,
 			started_at: params.started_at
 		});
-		addMessageToSession(params.session.session_id, assistantMessage);
+		addMessageToSession(params.session.sessionId, assistantMessage);
 		return {
 			success: true,
 			message: assistantMessage,
@@ -59,9 +59,9 @@ export async function routeIntent(
 		success: true,
 		message: createAssistantMessage({
 			content: 'I am not sure what you mean. Could you please rephrase?',
-			intent: params.session.current_intent?.name || 'Unknown',
-			slots: params.session.collected_slots,
-			confidence: params.session.current_confidence || 0,
+			intent: params.session.currentIntent?.name || 'Unknown',
+			slots: params.session.collectedSlots,
+			confidence: params.session.currentConfidence || 0,
 			started_at: params.started_at
 		}),
 		session_updated: false

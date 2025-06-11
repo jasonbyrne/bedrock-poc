@@ -85,7 +85,7 @@ export const isAuthenticated = () => {
 export const getUserDisplayName = () => {
 	const user = get(currentUser);
 	if (!user) return '';
-	return `${user.first_name} ${user.last_name}`;
+	return `${user.firstName} ${user.lastName}`;
 };
 
 // Initialize auth state when module loads

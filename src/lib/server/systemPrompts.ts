@@ -133,7 +133,7 @@ export function createMissingInformationPrompt(args: {
 	const missingInfo = missingSlots.join(', ');
 
 	let prompt = `
-You are a helpful and knowledgeable Medicare chatbot. I'm confident the user is asking about ${topic} for intent: ${intent}).`;
+You are a helpful and knowledgeable Medicare chatbot. The user is asking about ${topic} for intent: ${intent}).`;
 
 	if (providedInfo.length > 0) {
 		prompt += `\n\nI already have this information: ${providedInfo}`;
@@ -148,14 +148,13 @@ Please:
 1. Acknowledge their request positively
 2. Explain that you need a bit more information to help them accurately
 3. Ask specifically for the missing information in a natural, conversational way
-4. Explain why this information is helpful for providing accurate Medicare guidance
 
 RESPONSE FORMAT REQUIREMENTS:
 - Respond ONLY with plain text
 - Do NOT include JSON, markdown formatting, or structured data
 - Do NOT use code blocks, bullet points, or numbered lists in your response
 - Write in natural, conversational language as if speaking directly to the user
-- Keep your response friendly, clear, and focused on getting the specific details needed`;
+- Keep your response friendly, clear, concise, and focused on getting the specific details needed`;
 
 	console.log('[DEBUG] Missing information prompt:', prompt);
 	return prompt;

@@ -1,17 +1,17 @@
 export interface Medication {
-	name: string;
+	drugName: string;
 	dosage?: string;
 	frequency?: string;
 	duration?: string;
 	route?: string;
 	strength?: string;
 	rate?: string;
-	form?: string;
+	drugForm?: string;
 	notes?: string;
 }
 
 export interface Address {
-	street_address: string[];
+	streetAddress: string[];
 	city: string;
 	state: string;
 	zip: string;
@@ -37,26 +37,26 @@ export interface PrimaryCarePhysician {
 }
 
 export interface PhoneNumber {
-	phone_number: string;
-	phone_type: 'home' | 'work' | 'mobile' | 'other';
+	phoneNumber: string;
+	phoneType: 'home' | 'work' | 'mobile' | 'other';
 }
 
 export interface MedicareBeneficiary {
-	beneficiary_key: number;
-	first_name: string;
-	last_name: string;
-	birth_date: string; // ISO date string
+	beneficiaryKey: number;
+	firstName: string;
+	lastName: string;
+	birthDate: string; // ISO date string
 	gender: 'Male' | 'Female' | 'Other';
-	mailing_address: Address;
-	home_address?: Address;
-	phone_numbers: PhoneNumber[];
-	medicare_id: string;
-	plan_type: 'Medicare Advantage' | 'Original Medicare' | 'Medicare Supplement';
-	effective_date: string; // ISO date string
-	primary_care_physician?: PrimaryCarePhysician;
-	chronic_conditions: ChronicCondition[];
+	mailingAddress: Address;
+	homeAddress?: Address;
+	phoneNumbers: PhoneNumber[];
+	medicareId: string;
+	planType: 'Medicare Advantage' | 'Original Medicare' | 'Medicare Supplement';
+	effectiveDate: string; // ISO date string
+	primaryCarePhysician?: PrimaryCarePhysician;
+	chronicConditions: ChronicCondition[];
 	medications: Medication[];
-	preferred_pharmacy?: Pharmacy;
-	emergency_contact_name?: EmergencyContact;
-	emergency_contact_phone?: EmergencyContact;
+	preferredPharmacy?: Pharmacy;
+	emergencyContactName?: EmergencyContact;
+	emergencyContactPhone?: EmergencyContact;
 }
