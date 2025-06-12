@@ -7,7 +7,6 @@ import { GetPlanInfoController } from './controllers/GetPlanInfoController';
 import { FindProviderController } from './controllers/FindProviderController';
 import { GetMultiDrugPriceController } from './controllers/GetMultiDrugPriceController';
 import { createAssistantMessage } from './utils/createAssistantMessage';
-import { addMessageToSession } from '$lib/services/sessionService';
 
 import type Controller from './core/controller';
 
@@ -47,7 +46,6 @@ export async function routeIntent(
 			confidence: params.session.currentConfidence || 0,
 			started_at: params.started_at
 		});
-		addMessageToSession(params.session.sessionId, assistantMessage);
 		return {
 			success: true,
 			message: assistantMessage,

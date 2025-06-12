@@ -9,9 +9,9 @@ import { ChatMessage } from '$lib/server/core/chat-message.js';
 // In-memory session storage (in production, this would be Redis/database)
 const sessions = new Map<string, ChatSession>();
 
-// Cleanup interval for expired sessions (15 minutes)
+// Cleanup interval for expired sessions (1 hour)
 const SESSION_TIMEOUT = 60 * 60 * 1000;
-const CLEANUP_INTERVAL = 5 * 60 * 1000;
+const CLEANUP_INTERVAL = 10 * 60 * 1000;
 
 /**
  * Create a new chat session
@@ -46,17 +46,6 @@ export function updateSessionActivity(sessionId: string): boolean {
 	if (!session) return false;
 
 	session.updateActivity();
-	return true;
-}
-
-/**
- * Add a message to a session
- */
-export function addMessageToSession(sessionId: string, message: ChatMessage): boolean {
-	const session = sessions.get(sessionId);
-	if (!session) return false;
-
-	session.addMessage(message);
 	return true;
 }
 
