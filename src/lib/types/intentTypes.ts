@@ -5,10 +5,11 @@ import type { ChatMessage } from '../server/core/chat-message';
 export interface Intent {
 	name: string;
 	text: string;
+	promptInstructions: string;
 	slots: string[];
+	userSuggestion?: string;
 	criticalSlots?: string[];
 	examples?: string[];
-	description?: string;
 	isFallback?: boolean;
 	requiredSlots?: string[];
 }

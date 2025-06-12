@@ -1,14 +1,16 @@
 import type { AuthJwtPayload } from '$lib/types/authTypes.js';
+import { getSuggestions } from './intents';
 
 export const getWelcomeMessage = (userPayload: AuthJwtPayload) => {
-	return `Hello ${userPayload.firstName}! I'm your Medicare assistant.
+	const suggestions = getSuggestions()
+		.map((suggestion) => `• ${suggestion}`)
+		.join('\n');
 
-I can help you with:
-• Understanding your ${userPayload.planType} coverage
-• Finding providers and specialists
-• Checking drug costs and coverage
-• Explaining benefits and services
-• Prior authorization requirements
+	return `
+Hello ${userPayload.firstName}! I'm your Medicare assistant.
+
+Here are some things I can help you with:
+${suggestions}
 
 What specific aspect of your Medicare coverage would you like to know about?`;
 };

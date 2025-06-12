@@ -201,7 +201,7 @@
 							</svg>
 							Authenticating...
 						{:else}
-							Continue to Chat
+							Login
 							<svg class="arrow-icon" fill="none" stroke="#fff" viewBox="0 0 24 24">
 								<path
 									stroke-linecap="round"
@@ -217,7 +217,7 @@
 
 			<!-- Footer -->
 			<div class="login-footer">
-				<p class="footer-text">{publicEnv.app.name} • AWS Bedrock Integration Demo</p>
+				<p class="footer-text">{publicEnv.app.name} • Oddball Demo</p>
 			</div>
 		</div>
 	</div>

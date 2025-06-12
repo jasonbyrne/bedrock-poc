@@ -4,6 +4,8 @@
 	 */
 	import type { Snippet } from 'svelte';
 	import '../app.scss';
+	import SessionExpiredModal from '$lib/components/modals/SessionExpiredModal.svelte';
+	import { showSessionExpiredModal, handleSessionExpiredContinue } from '$lib/stores/sessionStore';
 
 	interface Props {
 		children?: Snippet;
@@ -18,6 +20,9 @@
 		{@render children()}
 	{/if}
 </div>
+
+<!-- Global Session Expired Modal -->
+<SessionExpiredModal isOpen={$showSessionExpiredModal} onContinue={handleSessionExpiredContinue} />
 
 <style lang="scss">
 	@use '../styles/mixins' as m;

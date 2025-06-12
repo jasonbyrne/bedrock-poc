@@ -5,29 +5,28 @@
 
 	import ChatMessage from './ChatMessage.svelte';
 	import ChatInput from './ChatInput.svelte';
+	import { tick } from 'svelte';
 	import type {
 		ChatMessageLike as ChatMessageType,
 		ConversationState
 	} from '$lib/types/chatTypes.js';
-	import { initializeChatSession, sendMessage } from '$lib/services/chatbotApi.js';
+	import { sessionAwareApi } from '$lib/stores/sessionStore.js';
 	import { authToken } from '$lib/stores/authStore.js';
-	import { tick } from 'svelte';
 
 	// Chat state using Svelte 5 runes
-	let conversationState = $state<ConversationState>({
+	let conversationState = $state({
 		session_id: '',
-		messages: [],
+		messages: [] as ChatMessageType[],
 		is_loading: false,
-		collected_slots: {},
 		last_activity: new Date()
 	});
-
-	let messagesScrollArea = $state<HTMLDivElement>();
-	let messagesListElement = $state<HTMLDivElement>();
 	let initializationError = $state<string | null>(null);
 	let hasInitialized = $state(false);
 
-	// Wait for auth token to be available, then initialize chat
+	// Scroll management
+	let messagesScrollArea: HTMLDivElement;
+
+	// Wait for auth token to be available, then initialize session
 	$effect(() => {
 		const token = $authToken;
 		if (token && !hasInitialized && !initializationError) {
@@ -36,9 +35,9 @@
 		}
 	});
 
-	// Auto-scroll when messages change
+	// Auto-scroll when new messages are added
 	$effect(() => {
-		// This effect runs whenever conversationState.messages changes
+		// This effect runs when messages change
 		conversationState.messages;
 		scrollToBottom();
 	});
@@ -48,22 +47,21 @@
 			conversationState.is_loading = true;
 			initializationError = null;
 
-			const token = $authToken;
-			if (!token) {
-				throw new Error('No authentication token available');
+			const welcomeResponse = await sessionAwareApi.initializeChatSession();
+			if (welcomeResponse) {
+				conversationState.session_id = welcomeResponse.session_id;
+
+				// Ensure timestamp is a Date object
+				const welcomeMessage = {
+					...welcomeResponse.message,
+					timestamp: new Date(welcomeResponse.message.timestamp)
+				};
+				conversationState.messages = [welcomeMessage];
+				conversationState.last_activity = new Date();
+			} else {
+				// Session expiration is handled globally, just return
+				return;
 			}
-
-			const welcomeResponse = await initializeChatSession();
-
-			conversationState.session_id = welcomeResponse.session_id;
-
-			// Ensure timestamp is a Date object
-			const welcomeMessage = {
-				...welcomeResponse.message,
-				timestamp: new Date(welcomeResponse.message.timestamp)
-			};
-			conversationState.messages = [welcomeMessage];
-			conversationState.last_activity = new Date();
 		} catch (error) {
 			console.error('Failed to initialize chat session:', error);
 			initializationError = error instanceof Error ? error.message : 'Failed to start chat session';
@@ -132,46 +130,44 @@
 		}
 	}
 
-	async function handleSendMessage(messageContent: string): Promise<void> {
+	async function handleMessage(message: string): Promise<void> {
+		if (!message.trim() || conversationState.is_loading) {
+			return;
+		}
+
 		try {
 			conversationState.is_loading = true;
 
-			// Add user message
-			addMessage(messageContent, 'user');
+			// Add user message to chat
+			const userMessage = addMessage(message, 'user');
 
-			// Add typing indicator
-			const typingIndicator = addTypingIndicator();
-
-			const token = $authToken;
-			if (!token) {
-				throw new Error('No authentication token available');
+			// If no session, try to initialize
+			if (!conversationState.session_id) {
+				await initializeChat();
+				if (!conversationState.session_id) {
+					throw new Error('Unable to initialize chat session');
+				}
 			}
 
 			// Send message to API
-			const response = await sendMessage(conversationState.session_id, messageContent);
+			const response = await sessionAwareApi.sendMessage(conversationState.session_id, message);
 
-			// Remove typing indicator
-			removeTypingIndicator();
-
-			// Add bot response
-			const botMessage = {
-				...response.message,
-				timestamp: new Date(response.message.timestamp) // Ensure proper Date object
-			};
-			conversationState.messages = [...conversationState.messages, botMessage];
-			conversationState.last_activity = new Date();
-
-			// Refocus the input after sending
-			setTimeout(() => {
-				const textarea = document.querySelector('textarea.chat-textarea') as HTMLTextAreaElement;
-				if (textarea) {
-					textarea.focus();
-				}
-			}, 150);
+			if (response) {
+				// Add assistant response to chat
+				const assistantMessage = addMessage(
+					response.message.content,
+					'assistant',
+					response.message.metadata
+				);
+				conversationState.last_activity = new Date();
+			} else {
+				// Session expiration is handled globally, just clean up loading state
+				conversationState.is_loading = false;
+				return;
+			}
 		} catch (error) {
 			console.error('Error sending message:', error);
-			removeTypingIndicator();
-
+			// Add error message to chat
 			addMessage(
 				'I apologize, but I encountered an error processing your message. Please try again.',
 				'assistant',
@@ -234,7 +230,7 @@
 					{/if}
 				{:else}
 					<!-- Messages -->
-					<div bind:this={messagesListElement} class="messages-list">
+					<div class="messages-list">
 						{#each conversationState.messages as message (message.id)}
 							<ChatMessage {message} />
 						{/each}
@@ -252,7 +248,7 @@
 					!conversationState.session_id ||
 					!!initializationError}
 				placeholder="Ask about Medicare benefits, drug prices, or plan information..."
-				onSendMessage={handleSendMessage}
+				onSendMessage={handleMessage}
 			/>
 		</div>
 	</div>

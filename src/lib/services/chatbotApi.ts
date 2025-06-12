@@ -12,6 +12,50 @@ import { publicEnv } from '$lib/config/env';
 
 const AUTH_TOKEN_KEY = 'medicare_chatbot_auth_token';
 
+// Enhanced error types for better UI handling
+export interface SessionExpiredError extends Error {
+	type: 'SESSION_EXPIRED';
+	code: 'SESSION_ERROR';
+}
+
+export interface AuthError extends Error {
+	type: 'AUTH_ERROR';
+	code: 'AUTH_ERROR';
+}
+
+export interface ApiRequestError extends Error {
+	type: 'API_ERROR';
+	code?: string;
+}
+
+/**
+ * Create typed error from API response
+ */
+function createTypedError(
+	error: ApiError,
+	status: number
+): SessionExpiredError | AuthError | ApiRequestError {
+	// Check for session error first - both 404 and SESSION_ERROR code
+	if (error.code === 'SESSION_ERROR' || (status === 404 && error.error.includes('Session'))) {
+		const sessionError = new Error(error.error) as SessionExpiredError;
+		sessionError.type = 'SESSION_EXPIRED';
+		sessionError.code = 'SESSION_ERROR';
+		return sessionError;
+	}
+
+	if (error.code === 'AUTH_ERROR' && status === 401) {
+		const authError = new Error(error.error) as AuthError;
+		authError.type = 'AUTH_ERROR';
+		authError.code = 'AUTH_ERROR';
+		return authError;
+	}
+
+	const apiError = new Error(error.error) as ApiRequestError;
+	apiError.type = 'API_ERROR';
+	apiError.code = error.code;
+	return apiError;
+}
+
 /**
  * Initialize a new chatbot session
  */
@@ -26,7 +70,7 @@ export async function initializeChatSession(): Promise<ChatbotWelcomeResponse> {
 
 	if (!response.ok) {
 		const error: ApiError = await response.json();
-		throw new Error(error.error || 'Failed to initialize chat session');
+		throw createTypedError(error, response.status);
 	}
 
 	return response.json();
@@ -55,7 +99,7 @@ export async function sendMessage(
 
 	if (!response.ok) {
 		const error: ApiError = await response.json();
-		throw new Error(error.error || 'Failed to send message');
+		throw createTypedError(error, response.status);
 	}
 
 	return response.json();
@@ -71,4 +115,15 @@ export function isApiError(response: unknown): response is ApiError {
 		'success' in response &&
 		(response as ApiError).success === false
 	);
+}
+
+/**
+ * Type guards for specific error types
+ */
+export function isSessionExpiredError(error: unknown): error is SessionExpiredError {
+	return error instanceof Error && 'type' in error && error.type === 'SESSION_EXPIRED';
+}
+
+export function isAuthError(error: unknown): error is AuthError {
+	return error instanceof Error && 'type' in error && error.type === 'AUTH_ERROR';
 }

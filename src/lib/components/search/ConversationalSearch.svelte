@@ -8,7 +8,7 @@
 	import SearchInput from './SearchInput.svelte';
 	import StreamingResponse from './StreamingResponse.svelte';
 	import type { ChatMessageLike as ChatMessageType } from '$lib/types/chatTypes.js';
-	import { initializeChatSession, sendMessage } from '$lib/services/chatbotApi.js';
+	import { sessionAwareApi } from '$lib/stores/sessionStore.js';
 	import { authToken } from '$lib/stores/authStore.js';
 
 	// Search state using Svelte 5 runes
@@ -36,13 +36,13 @@
 			isLoading = true;
 			initializationError = null;
 
-			const token = $authToken;
-			if (!token) {
-				throw new Error('No authentication token available');
+			const welcomeResponse = await sessionAwareApi.initializeChatSession();
+			if (welcomeResponse) {
+				sessionId = welcomeResponse.session_id;
+			} else {
+				// Session expiration is handled globally, just return
+				return;
 			}
-
-			const welcomeResponse = await initializeChatSession();
-			sessionId = welcomeResponse.session_id;
 		} catch (error) {
 			console.error('Failed to initialize search session:', error);
 			initializationError =
@@ -66,11 +66,6 @@
 			responseMetadata = null;
 			lastResponseTimestamp = null;
 
-			const token = $authToken;
-			if (!token) {
-				throw new Error('No authentication token available');
-			}
-
 			// If no session, try to initialize
 			if (!sessionId) {
 				await initializeSession();
@@ -80,16 +75,23 @@
 			}
 
 			// Send search query to API
-			const response = await sendMessage(sessionId, query);
+			const response = await sessionAwareApi.sendMessage(sessionId, query);
 
-			// Store metadata and timestamp
-			responseMetadata = response.message.metadata;
-			lastResponseTimestamp = new Date(response.message.timestamp);
+			if (response) {
+				// Store metadata and timestamp
+				responseMetadata = response.message.metadata;
+				lastResponseTimestamp = new Date(response.message.timestamp);
 
-			// Start streaming the response
-			isLoading = false;
-			isStreaming = true;
-			await streamResponse(response.message.content);
+				// Start streaming the response
+				isLoading = false;
+				isStreaming = true;
+				await streamResponse(response.message.content);
+			} else {
+				// Session expiration is handled globally, just clean up loading state
+				isLoading = false;
+				isStreaming = false;
+				return;
+			}
 		} catch (error) {
 			console.error('Error processing search:', error);
 			isLoading = false;

@@ -11,6 +11,8 @@ import {
 	createMissingInformationPrompt,
 	createAnswerPrompt
 } from '../systemPrompts';
+import type { LlmResponse } from '$lib/types/llmResponse';
+import { getSuggestions } from '../intents';
 
 // Simple logger fallback
 const consoleLogger = {
@@ -28,27 +30,6 @@ export interface BedrockMessage {
 }
 
 /**
- * Arguments for generating a Bedrock response.
- */
-export interface BedrockPromptArgs {
-	systemPrompt: string;
-	previousMessages: BedrockMessage[];
-	userInput: string;
-}
-
-/**
- * Base response interface for Bedrock operations.
- */
-export interface BedrockResponse {
-	content: string;
-	metadata?: {
-		latency: number;
-		model: string;
-	};
-	error?: Error;
-}
-
-/**
  * Intent detection result with confidence and optional slots.
  */
 export interface IntentDetectionResult {
@@ -57,27 +38,7 @@ export interface IntentDetectionResult {
 	slots?: Record<string, unknown>;
 }
 
-/**
- * Arguments for fallback message generation.
- */
-export interface FallbackMessageArgs {
-	session: ChatSession;
-	originalMessage: string;
-	suggestedActions?: string[];
-}
-
-/**
- * Arguments for clarification message generation.
- */
-export interface ClarificationMessageArgs {
-	session: ChatSession;
-	suspectedIntent: string;
-	confidence: number;
-	extractedSlots?: Record<string, unknown>;
-}
-
 export interface AnswerMessageArgs {
-	session: ChatSession;
 	topic: string;
 	answer: string | Record<string, unknown>;
 }
@@ -86,7 +47,6 @@ export interface AnswerMessageArgs {
  * Arguments for missing information message generation.
  */
 export interface MissingInformationArgs {
-	session: ChatSession;
 	topic: string;
 	providedSlots: string[];
 	missingSlots: string[];
@@ -134,28 +94,16 @@ export class BedrockService {
 	 */
 	public async detectIntent(session: ChatSession): Promise<IntentDetectionResult | null> {
 		// Get the current user message (the last message which was just added)
-		const currentUserMessage = session.getLastMessage('user');
-		if (!currentUserMessage) {
+		if (!session.userMessage) {
 			consoleLogger.error('No user message found in session');
 			return null;
 		}
 
-		// Get context messages and prepare for Claude API
-		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow, 1);
-		const previousMessages = this.prepareMessagesForClaude(contextMessages);
-
-		consoleLogger.info('Intent detection with context', {
-			currentMessage: currentUserMessage.content,
-			contextMessagesCount: previousMessages.length,
-			rawContextCount: contextMessages.length
-		});
-
 		const systemPrompt = createIntentDetectionPrompt();
 		const bedrockResult = await this.generateResponseWithOptions(
 			{
-				systemPrompt,
-				previousMessages,
-				userInput: currentUserMessage.content
+				session,
+				systemPrompt
 			},
 			{
 				temperature: 0.05, // Very deterministic for JSON output
@@ -175,25 +123,24 @@ export class BedrockService {
 	/**
 	 * Generate a fallback message when intent cannot be determined.
 	 */
-	public async generateFallbackMessage(args: FallbackMessageArgs): Promise<BedrockResponse> {
-		const { session, originalMessage, suggestedActions = [] } = args;
-
-		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
-		const previousMessages = this.prepareMessagesForClaude(contextMessages);
-
+	public async generateFallbackMessage(
+		session: ChatSession,
+		opts?: {
+			suggestedActions: string[];
+		}
+	): Promise<LlmResponse> {
 		const systemPrompt = createFallbackPrompt({
-			originalMessage,
-			suggestedActions
+			originalMessage: session.userMessage,
+			suggestedActions: opts?.suggestedActions.length ? opts.suggestedActions : getSuggestions()
 		});
 
 		return this.generateResponseWithOptions(
 			{
-				systemPrompt,
-				previousMessages,
-				userInput: originalMessage
+				session,
+				systemPrompt
 			},
 			{
-				temperature: 0.3, // Slightly higher for natural conversation
+				temperature: 0.2, // Slightly higher for natural conversation
 				maxTokens: 800, // Allow more space for helpful responses
 				isStructured: false // Natural conversational response
 			}
@@ -204,28 +151,26 @@ export class BedrockService {
 	 * Generate a clarification message when intent is suspected but confidence is low.
 	 */
 	public async generateClarificationMessage(
-		args: ClarificationMessageArgs
-	): Promise<BedrockResponse> {
-		const { session, suspectedIntent, confidence, extractedSlots = {} } = args;
-
-		const currentUserMessage = session.getLastMessage('user');
-		const userInput = currentUserMessage?.content || '';
-
-		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
-		const previousMessages = this.prepareMessagesForClaude(contextMessages);
+		session: ChatSession,
+		args: {
+			suspectedIntent: string;
+			confidence: number;
+			extractedSlots?: Record<string, unknown>;
+		}
+	): Promise<LlmResponse> {
+		const { suspectedIntent, confidence, extractedSlots = {} } = args;
 
 		const systemPrompt = createClarificationPrompt({
 			suspectedIntent,
 			confidence,
 			extractedSlots,
-			originalMessage: userInput
+			originalMessage: session.userMessage
 		});
 
 		return this.generateResponseWithOptions(
 			{
-				systemPrompt,
-				previousMessages,
-				userInput
+				session,
+				systemPrompt
 			},
 			{
 				temperature: 0.2, // Balanced for clarity while being conversational
@@ -239,15 +184,14 @@ export class BedrockService {
 	 * Generate a message asking for missing information when intent is confident but slots are incomplete.
 	 */
 	public async generateMissingInformationMessage(
-		args: MissingInformationArgs
-	): Promise<BedrockResponse> {
-		const { session, topic, providedSlots, missingSlots } = args;
-
-		const currentUserMessage = session.getLastMessage('user');
-		const userInput = currentUserMessage?.content || '';
-
-		const contextMessages = session.getLastNMessages(4);
-		const previousMessages = this.prepareMessagesForClaude(contextMessages);
+		session: ChatSession,
+		args: {
+			topic: string;
+			providedSlots: string[];
+			missingSlots: string[];
+		}
+	): Promise<LlmResponse> {
+		const { topic, providedSlots, missingSlots } = args;
 
 		const systemPrompt = createMissingInformationPrompt({
 			intent: session.intentName,
@@ -258,9 +202,8 @@ export class BedrockService {
 
 		return this.generateResponseWithOptions(
 			{
-				systemPrompt,
-				previousMessages,
-				userInput
+				session,
+				systemPrompt
 			},
 			{
 				temperature: 0.15, // Low for consistent information requests
@@ -270,19 +213,21 @@ export class BedrockService {
 		);
 	}
 
-	public async generateAnswerMessage(args: AnswerMessageArgs): Promise<BedrockResponse> {
-		const { session, topic, answer } = args;
-
-		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
-		const previousMessages = this.prepareMessagesForClaude(contextMessages);
+	public async generateAnswerMessage(
+		session: ChatSession,
+		args: {
+			topic: string;
+			answer: string | Record<string, unknown>;
+		}
+	): Promise<LlmResponse> {
+		const { topic, answer } = args;
 
 		const systemPrompt = createAnswerPrompt(topic, answer);
 
 		return this.generateResponseWithOptions(
 			{
-				systemPrompt,
-				previousMessages,
-				userInput: session.userMessage
+				session,
+				systemPrompt
 			},
 			{
 				temperature: 0.1, // Low for consistent information requests
@@ -296,19 +241,24 @@ export class BedrockService {
 	 * Generate a response with specific parameters for different response types.
 	 */
 	private async generateResponseWithOptions(
-		args: BedrockPromptArgs,
+		args: {
+			session: ChatSession;
+			systemPrompt: string;
+		},
 		options: {
 			temperature?: number;
 			maxTokens?: number;
 			isStructured?: boolean;
 		} = {}
-	): Promise<BedrockResponse> {
+	): Promise<LlmResponse> {
 		const {
 			temperature = serverEnv.aws.bedrock.defaultTemperature,
 			maxTokens = serverEnv.aws.bedrock.defaultMaxTokens,
 			isStructured = false
 		} = options;
-		const { systemPrompt, previousMessages, userInput } = args;
+		const { systemPrompt, session } = args;
+		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
+		const previousMessages = this.prepareMessagesForClaude(contextMessages);
 		const startTime = Date.now();
 
 		if (this.isMock) {
@@ -321,20 +271,14 @@ export class BedrockService {
 			};
 		}
 
+		consoleLogger.info('system prompt', systemPrompt);
+		consoleLogger.info('previous messages', previousMessages);
+
 		try {
-			const messages = this.prepareMessagesForClaude(previousMessages, userInput);
-
-			// Debug logging for message structure
-			consoleLogger.info('Claude API messages', {
-				messageCount: messages.length,
-				roles: messages.map((m) => m.role),
-				lastMessage: messages[messages.length - 1]?.role
-			});
-
 			// Different parameters for structured vs conversational responses
 			const bodyParams = {
 				anthropic_version: 'bedrock-2023-05-31',
-				messages,
+				messages: previousMessages,
 				max_tokens: maxTokens,
 				system: systemPrompt,
 				temperature,
@@ -535,16 +479,5 @@ export class BedrockService {
 	}
 }
 
-// Export lazy singleton interface
-export const bedrockService = {
-	getInstance: () => BedrockService.getInstance(),
-	detectIntent: (session: ChatSession) => BedrockService.getInstance().detectIntent(session),
-	generateFallbackMessage: (args: FallbackMessageArgs) =>
-		BedrockService.getInstance().generateFallbackMessage(args),
-	generateClarificationMessage: (args: ClarificationMessageArgs) =>
-		BedrockService.getInstance().generateClarificationMessage(args),
-	generateMissingInformationMessage: (args: MissingInformationArgs) =>
-		BedrockService.getInstance().generateMissingInformationMessage(args),
-	generateAnswerMessage: (args: AnswerMessageArgs) =>
-		BedrockService.getInstance().generateAnswerMessage(args)
-};
+// Export singleton instance
+export const bedrockService = BedrockService.getInstance();

@@ -3,13 +3,13 @@
  * All prompts should be clear, concise, and tailored to the specific task.
  */
 
-import { INTENTS } from './intents';
+import { INTENTS, getSuggestions } from './intents';
 
 // Helper function to build intent list
 function buildIntentList(): string {
 	const intentLines = INTENTS.map(
 		(intent) =>
-			`- ${intent.name}: ${intent.description}${intent.slots.length ? ` (slots: ${intent.slots.join(', ')})` : ''}`
+			`- ${intent.name}: ${intent.promptInstructions}${intent.slots.length ? ` (slots: ${intent.slots.join(', ')})` : ''}`
 	);
 	return intentLines.join('\n');
 }
@@ -21,14 +21,12 @@ export function createIntentDetectionPrompt(): string {
 	const intentList = buildIntentList();
 
 	return `
-You are an intent recognition engine for a Medicare chatbot. Analyze the user's message and return a valid, minified 
-JSON object with these fields:
-- intent (string): one of the supported intents below
-- confidence (number): your confidence (0-1)
-- slots (object, optional): any key-value slots extracted from the message (omit this property if there are no slots)
+You are an intent recognition engine for a Medicare chatbot. Analyze the user's message to determine the best match.
 
 Supported intents (choose the closest match):
 ${intentList}
+
+If we are unsure what they are asking or they are asking something outside of the scope of what we can help with, return the "Unknown" intent.
 
 CRITICAL FORMATTING REQUIREMENTS:
 - Respond ONLY with a valid, minified JSON object
@@ -36,6 +34,11 @@ CRITICAL FORMATTING REQUIREMENTS:
 - Do NOT wrap the response in arrays, quotes, or additional JSON structures
 - Return raw JSON directly without any wrapper format
 - Ensure the JSON is valid and properly escaped
+
+The response should be a JSON object with these fields:
+- intent (string): one of the supported intents below
+- confidence (number): your confidence (0-1)
+- slots (object, optional): any key-value slots extracted from the message (omit this property if there are no slots)
 
 Example (with slots):
 {"intent":"GetDrugPrice","confidence":0.92,"slots":{"drug_name":"atorvastatin"}}
@@ -55,24 +58,29 @@ export function createFallbackPrompt(args: {
 	const suggestionsText = suggestedActions.map((action) => `- ${action}`).join('\n');
 
 	let prompt = `
-You are a helpful and knowledgeable Medicare chatbot. The user sent a message that I couldn't understand clearly.
+You are a helpful and knowledgeable Medicare chatbot. We did not not understand the user's request
+or they are asking something outside of the scope of what we can help with.
 
-Original message: "${originalMessage}"
+The user said: 
+"${originalMessage}"
 
-Please respond as a friendly healthcare assistant and:
-1. Acknowledge that you didn't understand their request clearly
-2. Ask them to rephrase or provide more details
-3. Offer helpful suggestions for what they might be looking for
+Please respond to:
+- Acknowledge that you didn't understand their request clearly
+- Ask them to rephrase or provide more details
+- Offer helpful suggestions of what we can help with. Do not suggest things that are outside of our scope.
+- Keep your response concise, empathetic, and focused on helping them get the Medicare information they need
 
-RESPONSE FORMAT REQUIREMENTS:
+Response format:
 - Respond ONLY with plain text
 - Do NOT include JSON, markdown formatting, or structured data
 - Do NOT use code blocks, bullet points, or numbered lists in your response
 - Write in natural, conversational language as if speaking directly to the user
-- Keep your response concise, empathetic, and focused on helping them get the Medicare information they need`;
+`;
 
 	if (suggestionsText.length > 0) {
-		prompt += `\n\nSome suggestions you can offer (incorporate naturally into your response):\n${suggestionsText}`;
+		prompt += `\n\nSuggest these options:\n${suggestionsText}`;
+	} else {
+		prompt += `\n\nSuggest these options:\n${getSuggestions().join('\n')}`;
 	}
 
 	return prompt;
@@ -91,7 +99,8 @@ export function createClarificationPrompt(args: {
 	const confidencePercentage = Math.round(confidence * 100);
 
 	let prompt = `
-You are a helpful and knowledgeable Medicare chatbot. I think the user is asking about "${suspectedIntent}" but I'm not completely confident (${confidencePercentage}% sure).
+You are a helpful and knowledgeable Medicare chatbot. I think the user is asking about "${suspectedIntent}" 
+but I'm not completely confident (${confidencePercentage}% sure).
 
 Original message: "${originalMessage}"`;
 

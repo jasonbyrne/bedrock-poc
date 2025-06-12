@@ -6,7 +6,6 @@ import {
 } from '$lib/server/services/medicalComprehendService';
 import type { Medication } from '$lib/types/persona';
 import { bedrockService } from '$lib/server/services/bedrockService';
-import { toString } from '$lib/server/utils/string';
 import { backfillObject } from '$lib/utils/objectMerge';
 
 export class GetSingleDrugPriceController extends Controller {
@@ -71,13 +70,13 @@ export class GetSingleDrugPriceController extends Controller {
 	}
 
 	private async generateNeedMoreInfoResponse(): Promise<MessageReply> {
-		const clarification = await bedrockService.generateMissingInformationMessage({
-			session: this.session,
-			topic: 'drug price',
-			providedSlots: this.slotsWeHave(),
-			missingSlots: this.slotsWeAreMissing()
-		});
-		return this.reply(clarification.content);
+		return this.reply(
+			await bedrockService.generateMissingInformationMessage(this.session, {
+				topic: 'drug price',
+				providedSlots: this.slotsWeHave(),
+				missingSlots: this.slotsWeAreMissing()
+			})
+		);
 	}
 
 	private async queryMedicalComprehend() {

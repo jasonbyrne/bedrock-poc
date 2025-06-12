@@ -2,6 +2,7 @@ import type { IntentHandlerParams } from '$lib/types/intentTypes';
 import type { MessageReply } from '$lib/types/message-reply';
 import type { ChatSession } from '$lib/server/core/chat-session';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
+import { type LlmResponse, isLlmResponse } from '$lib/types/llmResponse';
 
 abstract class Controller {
 	/**
@@ -38,7 +39,22 @@ abstract class Controller {
 		return this.session.user as AuthJwtPayload;
 	}
 
-	protected reply(payload: string | (Record<string, unknown> & { message: string })): MessageReply {
+	/**
+	 * Reply to the user with a message. Handle various overloads of the payload.
+	 * @param payload - The message to reply with.
+	 * @returns The message reply.
+	 */
+	protected reply(
+		payload: string | LlmResponse | (Record<string, unknown> & { message: string })
+	): MessageReply {
+		if (isLlmResponse(payload)) {
+			if (payload.error) {
+				console.error('[ERROR] LLM Error:', payload.error);
+			}
+			return {
+				message: payload.content
+			};
+		}
 		if (typeof payload === 'string') {
 			return {
 				message: payload

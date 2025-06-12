@@ -7,7 +7,7 @@
 	import FeedInput from './FeedInput.svelte';
 	import FeedResults from './FeedResults.svelte';
 	import type { ChatMessageLike as ChatMessageType } from '$lib/types/chatTypes.js';
-	import { initializeChatSession, sendMessage } from '$lib/services/chatbotApi.js';
+	import { sessionAwareApi } from '$lib/stores/sessionStore.js';
 	import { authToken } from '$lib/stores/authStore.js';
 
 	// Feed state using Svelte 5 runes
@@ -50,8 +50,13 @@
 			isLoading = true;
 			initializationError = null;
 
-			const welcomeResponse = await initializeChatSession();
-			sessionId = welcomeResponse.session_id;
+			const welcomeResponse = await sessionAwareApi.initializeChatSession();
+			if (welcomeResponse) {
+				sessionId = welcomeResponse.session_id;
+			} else {
+				// Session expiration is handled globally, just return
+				return;
+			}
 		} catch (error) {
 			console.error('Failed to initialize search session:', error);
 			initializationError =
@@ -96,29 +101,35 @@
 			}
 
 			// Send search query to API
-			const response = await sendMessage(sessionId, query);
+			const response = await sessionAwareApi.sendMessage(sessionId, query);
 
-			// Update the entry with response data
-			const updatedEntries = searchEntries.map((entry) =>
-				entry.id === newEntry.id
-					? {
-							...entry,
-							response: response.message.content,
-							metadata: response.message.metadata,
-							timestamp: new Date(response.message.timestamp),
-							isStreaming: false
-						}
-					: entry
-			);
+			if (response) {
+				// Update the entry with response data
+				const updatedEntries = searchEntries.map((entry) =>
+					entry.id === newEntry.id
+						? {
+								...entry,
+								response: response.message.content,
+								metadata: response.message.metadata,
+								timestamp: new Date(response.message.timestamp),
+								isStreaming: false
+							}
+						: entry
+				);
 
-			// Start streaming effect
-			isLoading = false;
-			await streamResponseToEntry(newEntry.id, response.message.content, updatedEntries);
+				// Start streaming effect
+				isLoading = false;
+				await streamResponseToEntry(newEntry.id, response.message.content, updatedEntries);
+			} else {
+				// Session expiration is handled globally, just clean up loading state
+				isLoading = false;
+				return;
+			}
 		} catch (error) {
 			console.error('Error processing search:', error);
 			isLoading = false;
 
-			// Update entry with error
+			// Update entry with generic error
 			searchEntries = searchEntries.map((entry) =>
 				entry.id === searchEntries[searchEntries.length - 1].id
 					? {
