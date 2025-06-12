@@ -5,7 +5,6 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { ApiError } from '$lib/types/chatTypes.js';
-import { ChatMessage } from '$lib/server/core/chat-message.js';
 import { getIntentByName } from '$lib/server/intents';
 import type { IntentHandlerParams } from '$lib/types/intentTypes';
 import { routeIntent } from '$lib/server/router';
@@ -40,12 +39,9 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Set user info and current message in session (single source of truth)
 		session.setUser(userPayload);
-		session.setCurrentUserMessage(messageRequest.message);
+		session.addUserMessage(messageRequest.message);
 
-		// Create user message using the class
-		const userMessage = ChatMessage.createUserMessage(messageRequest.message);
-		session.addMessage(userMessage);
-
+		// Detect intent
 		const intentResult = await detectIntent(session);
 		if (!intentResult) {
 			const errorResponse: ApiError = {
@@ -80,7 +76,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Add assistant message to session history
 		if (result && result.message) {
-			session.addMessage(result.message);
+			session.addAssistantMessage(result.message);
 		}
 
 		return json(result);

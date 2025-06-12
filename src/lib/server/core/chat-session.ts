@@ -1,5 +1,5 @@
 import { nanoid } from 'nanoid';
-import { ChatMessage } from './chat-message';
+import { ChatMessage, type MessageRole } from './chat-message';
 import { getIntentByName } from '../intents';
 import type { Intent } from '$lib/types/intentTypes';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
@@ -18,7 +18,6 @@ export class ChatSession {
 	currentConfidence?: number;
 	collectedSlots: Record<string, unknown> = {};
 	user?: AuthJwtPayload;
-	userMessage?: string;
 
 	constructor(beneficiaryKey: number, sessionId?: string) {
 		this.sessionId = sessionId || generateSessionId();
@@ -30,7 +29,6 @@ export class ChatSession {
 		this.currentConfidence = undefined;
 		this.collectedSlots = {};
 		this.user = undefined;
-		this.userMessage = undefined;
 	}
 
 	public get intentName(): string {
@@ -41,7 +39,14 @@ export class ChatSession {
 		return this.currentConfidence ?? 0;
 	}
 
-	public addMessage(message: ChatMessage): void {
+	/**
+	 * Get the last user message
+	 */
+	public get userMessage(): string {
+		return this.getLastMessage('user')?.content ?? '';
+	}
+
+	private addMessage(message: ChatMessage): void {
 		this.messages.push(message);
 		this.lastActivity = new Date();
 	}
@@ -62,10 +67,23 @@ export class ChatSession {
 	}
 
 	/**
-	 * Set the current user message being processed
+	 * Append a new user message to the session
 	 */
-	public setCurrentUserMessage(message: string): void {
-		this.userMessage = message;
+	public addUserMessage(message: string | ChatMessage): ChatMessage {
+		const userMessage =
+			typeof message === 'string' ? ChatMessage.createUserMessage(message) : message;
+		this.addMessage(userMessage);
+		return userMessage;
+	}
+
+	/**
+	 * Append a new assistant message to the session
+	 */
+	public addAssistantMessage(message: string | ChatMessage) {
+		const assistantMessage =
+			typeof message === 'string' ? ChatMessage.createAssistantMessage(message) : message;
+		this.addMessage(assistantMessage);
+		return assistantMessage;
 	}
 
 	/**
@@ -151,7 +169,7 @@ export class ChatSession {
 		);
 	}
 
-	public getLastMessage(type?: 'user' | 'assistant'): ChatMessage | undefined {
+	public getLastMessage(type?: MessageRole): ChatMessage | undefined {
 		if (!type) {
 			return this.messages[this.messages.length - 1];
 		}

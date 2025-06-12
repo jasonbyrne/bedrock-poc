@@ -2,13 +2,7 @@
 
 import type { InvokeModelCommandInput } from '@aws-sdk/client-bedrock-runtime';
 import { BedrockRuntimeClient, InvokeModelCommand } from '@aws-sdk/client-bedrock-runtime';
-import {
-	AWS_BEDROCK_ACCESS_KEY_ID,
-	AWS_BEDROCK_SECRET_ACCESS_KEY,
-	AWS_BEDROCK_REGION,
-	AWS_BEDROCK_MODEL_ID,
-	AWS_BEDROCK_MOCK_RESPONSES
-} from '$env/static/private';
+import { serverEnv } from '../config/env.server.js';
 import type { ChatSession } from '../core/chat-session';
 import {
 	createIntentDetectionPrompt,
@@ -91,8 +85,6 @@ export interface MissingInformationArgs {
 	missingSlots: string[];
 }
 
-const CONTEXT_MESSAGES = 6;
-
 export class BedrockService {
 	private static instance: BedrockService;
 	private client: BedrockRuntimeClient;
@@ -100,16 +92,24 @@ export class BedrockService {
 	private readonly isMock: boolean;
 
 	private constructor() {
+		const { accessKeyId, secretAccessKey } = serverEnv.aws.bedrock;
+
+		if (!accessKeyId || !secretAccessKey) {
+			throw new Error(
+				'AWS Bedrock credentials are required: BEDROCK_ACCESS_KEY_ID and BEDROCK_SECRET_ACCESS_KEY'
+			);
+		}
+
 		this.client = new BedrockRuntimeClient({
-			region: AWS_BEDROCK_REGION,
+			region: serverEnv.aws.bedrock.region,
 			credentials: {
-				accessKeyId: AWS_BEDROCK_ACCESS_KEY_ID,
-				secretAccessKey: AWS_BEDROCK_SECRET_ACCESS_KEY
+				accessKeyId,
+				secretAccessKey
 			},
-			maxAttempts: 3
+			maxAttempts: serverEnv.aws.bedrock.rateLimiting.maxRetryAttempts
 		});
-		this.modelId = AWS_BEDROCK_MODEL_ID;
-		this.isMock = AWS_BEDROCK_MOCK_RESPONSES === 'true';
+		this.modelId = serverEnv.aws.bedrock.modelId;
+		this.isMock = serverEnv.app.mockBedrockResponses;
 	}
 
 	/**
@@ -134,7 +134,7 @@ export class BedrockService {
 		}
 
 		// Get context messages and prepare for Claude API
-		const contextMessages = session.getLastNMessages(CONTEXT_MESSAGES, 1);
+		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow, 1);
 		const previousMessages = this.prepareMessagesForClaude(contextMessages);
 
 		consoleLogger.info('Intent detection with context', {
@@ -171,7 +171,7 @@ export class BedrockService {
 	public async generateFallbackMessage(args: FallbackMessageArgs): Promise<BedrockResponse> {
 		const { session, originalMessage, suggestedActions = [] } = args;
 
-		const contextMessages = session.getLastNMessages(CONTEXT_MESSAGES);
+		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
 		const previousMessages = this.prepareMessagesForClaude(contextMessages);
 
 		const systemPrompt = createFallbackPrompt({
@@ -204,7 +204,7 @@ export class BedrockService {
 		const currentUserMessage = session.getLastMessage('user');
 		const userInput = currentUserMessage?.content || '';
 
-		const contextMessages = session.getLastNMessages(CONTEXT_MESSAGES);
+		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
 		const previousMessages = this.prepareMessagesForClaude(contextMessages);
 
 		const systemPrompt = createClarificationPrompt({
@@ -274,7 +274,11 @@ export class BedrockService {
 			isStructured?: boolean;
 		} = {}
 	): Promise<BedrockResponse> {
-		const { temperature = 0.1, maxTokens = 1024, isStructured = false } = options;
+		const {
+			temperature = serverEnv.aws.bedrock.defaultTemperature,
+			maxTokens = serverEnv.aws.bedrock.defaultMaxTokens,
+			isStructured = false
+		} = options;
 		const { systemPrompt, previousMessages, userInput } = args;
 		const startTime = Date.now();
 
@@ -289,7 +293,14 @@ export class BedrockService {
 		}
 
 		try {
-			const messages = this.buildMessages(previousMessages, userInput);
+			const messages = this.prepareMessagesForClaude(previousMessages, userInput);
+
+			// Debug logging for message structure
+			consoleLogger.info('Claude API messages', {
+				messageCount: messages.length,
+				roles: messages.map((m) => m.role),
+				lastMessage: messages[messages.length - 1]?.role
+			});
 
 			// Different parameters for structured vs conversational responses
 			const bodyParams = {
@@ -370,15 +381,17 @@ export class BedrockService {
 			content = responseBody[0].text;
 		}
 		// Check if responseBody.content is the Claude 3 array format
-		else if (Array.isArray(responseBodyObject.content)) {
-			const contentArray = responseBodyObject.content as Array<{ type: string; text: string }>;
-			if (contentArray.length > 0 && typeof contentArray[0].text === 'string') {
-				content = contentArray[0].text;
-			}
+		else if (
+			Array.isArray(responseBodyObject.content) &&
+			responseBodyObject.content.length > 0 &&
+			typeof responseBodyObject.content[0].text === 'string'
+		) {
+			content = responseBodyObject.content[0].text;
 		}
-		// Check if responseBody.content is a stringified Claude 3 array
+		// Check if responseBody.content is a string (should try parsing as JSON first for Claude 3)
 		else if (typeof responseBodyObject.content === 'string') {
 			try {
+				// Try to parse the content as JSON in case it's a Claude 3 response
 				const parsedContent = JSON.parse(responseBodyObject.content);
 				if (
 					Array.isArray(parsedContent) &&
@@ -390,21 +403,20 @@ export class BedrockService {
 					content = responseBodyObject.content;
 				}
 			} catch {
-				// If parsing fails, treat as regular string content
+				// If JSON parsing fails, use the content as-is
 				content = responseBodyObject.content;
 			}
 		}
-		// Fallback to other response formats
-		else {
-			const fallback = responseBodyObject.content || responseBodyObject.completion || '';
-			content = typeof fallback === 'string' ? fallback : JSON.stringify(fallback);
+		// Legacy Claude 2 format
+		else if (typeof responseBodyObject.completion === 'string') {
+			content = responseBodyObject.completion;
 		}
 
-		return content;
+		return content.trim();
 	}
 
 	/**
-	 * Parse intent detection response from Bedrock.
+	 * Parse intent detection response from Bedrock and return structured result.
 	 */
 	private parseIntentDetectionResponse(content: string): IntentDetectionResult | null {
 		try {
@@ -413,92 +425,95 @@ export class BedrockService {
 				confidence?: number;
 				slots?: Record<string, unknown>;
 			}
-			let parsed: ParsedIntent | null = null;
 
-			// Try to parse as array first (Claude 3 format)
-			if (content.trim().startsWith('[')) {
-				const arr: Array<{ type: string; text: string }> = JSON.parse(content);
-				if (Array.isArray(arr) && arr.length > 0 && typeof arr[0].text === 'string') {
-					parsed = JSON.parse(arr[0].text) as ParsedIntent;
+			// Try to parse as JSON first
+			let parsed: ParsedIntent;
+			try {
+				parsed = JSON.parse(content);
+			} catch {
+				// If JSON parsing fails, look for JSON in the content
+				const jsonMatch = content.match(/\{[\s\S]*\}/);
+				if (!jsonMatch) {
+					consoleLogger.error('No JSON found in intent response:', content);
+					return null;
 				}
-			} else {
-				parsed = JSON.parse(content) as ParsedIntent;
+				parsed = JSON.parse(jsonMatch[0]);
 			}
 
-			consoleLogger.info('Parsed intent JSON', parsed);
-
-			if (parsed && typeof parsed.intent === 'string' && typeof parsed.confidence === 'number') {
-				return parsed as IntentDetectionResult;
+			// Validate required fields
+			if (!parsed.intent || typeof parsed.confidence !== 'number') {
+				consoleLogger.error('Invalid intent response format:', parsed);
+				return null;
 			}
 
-			consoleLogger.warn('Parsed object missing required fields', parsed);
-		} catch (err) {
-			consoleLogger.error('Failed to parse Bedrock intent JSON', { error: err, content });
+			return {
+				intent: parsed.intent,
+				confidence: parsed.confidence,
+				slots: parsed.slots || {}
+			};
+		} catch (error) {
+			consoleLogger.error('Error parsing intent detection response', { error, content });
+			return null;
 		}
-
-		return null;
 	}
 
 	/**
-	 * Prepare chat messages for Claude API with proper role alternation.
+	 * Convert chat session messages to the format expected by Claude model.
+	 * Ensures strict role alternation required by Claude 3 API.
+	 * Optionally adds a new user input message.
 	 */
 	private prepareMessagesForClaude(
-		messages: Array<{ role: string; content: string }>
+		messages: Array<{ role: string; content: string }>,
+		newUserInput?: string
 	): BedrockMessage[] {
-		// Convert to BedrockMessage format and filter for valid roles
-		const bedrockMessages = messages
+		// Filter to only user and assistant messages
+		const validMessages = messages
 			.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
 			.map((msg) => ({
 				role: msg.role as 'user' | 'assistant',
 				content: msg.content
 			}));
 
-		// Claude API requires strict alternation between user and assistant roles
-		const filteredMessages: BedrockMessage[] = [];
-		let lastRole: 'user' | 'assistant' | null = null;
+		// Add new user input if provided
+		if (newUserInput) {
+			validMessages.push({
+				role: 'user',
+				content: newUserInput
+			});
+		}
 
-		for (const msg of bedrockMessages) {
-			// Only add message if it's a different role from the last one
-			if (msg.role !== lastRole) {
-				filteredMessages.push(msg);
-				lastRole = msg.role;
+		// Ensure strict role alternation by concatenating consecutive messages of the same role
+		const alternatingMessages: BedrockMessage[] = [];
+
+		for (const msg of validMessages) {
+			const lastMessage = alternatingMessages[alternatingMessages.length - 1];
+
+			if (!lastMessage || lastMessage.role !== msg.role) {
+				// Different role or first message - add as new message
+				alternatingMessages.push(msg);
+			} else {
+				// Same role as previous message - concatenate content
+				lastMessage.content += '\n\n' + msg.content;
 			}
 		}
 
-		// Ensure we start with a user message
-		while (filteredMessages.length > 0 && filteredMessages[0].role === 'assistant') {
-			filteredMessages.shift();
+		// Ensure we start with a user message (Claude 3 requirement)
+		while (alternatingMessages.length > 0 && alternatingMessages[0].role === 'assistant') {
+			alternatingMessages.shift();
 		}
 
-		return filteredMessages;
-	}
-
-	/**
-	 * Build Claude 3 Messages API array from system prompt, previous messages, and user input.
-	 */
-	private buildMessages(
-		previousMessages: BedrockMessage[],
-		userInput: string
-	): Array<{ role: 'user' | 'assistant'; content: string }> {
-		const messages: Array<{ role: 'user' | 'assistant'; content: string }> = [];
-
-		// Add previous messages as-is, preserving strict alternation
-		for (const msg of previousMessages) {
-			if (msg.role === 'user' || msg.role === 'assistant') {
-				messages.push({ role: msg.role, content: msg.content });
-			}
-		}
-
-		// Always add the new user message as-is, never prepend system prompt
-		if (messages.length === 0 || messages[messages.length - 1].role === 'assistant') {
-			messages.push({ role: 'user', content: userInput });
-		} else {
-			// If the last message was 'user', do NOT add another user message (should not happen)
-			consoleLogger.warn('Attempted to add two user messages in a row to Claude 3 messages API.');
-		}
-		return messages;
+		return alternatingMessages;
 	}
 }
 
-// Export singleton instance
-export const bedrockService = BedrockService.getInstance();
+// Export lazy singleton interface
+export const bedrockService = {
+	getInstance: () => BedrockService.getInstance(),
+	detectIntent: (session: ChatSession) => BedrockService.getInstance().detectIntent(session),
+	generateFallbackMessage: (args: FallbackMessageArgs) =>
+		BedrockService.getInstance().generateFallbackMessage(args),
+	generateClarificationMessage: (args: ClarificationMessageArgs) =>
+		BedrockService.getInstance().generateClarificationMessage(args),
+	generateMissingInformationMessage: (args: MissingInformationArgs) =>
+		BedrockService.getInstance().generateMissingInformationMessage(args)
+};

@@ -167,28 +167,26 @@ Uses SvelteKit's secure environment variable system:
 
 ```typescript
 // In src/lib/server/services/medicalComprehendService.ts
-import {
-	AWS_MEDICAL_COMPREHEND_REGION,
-	AWS_MEDICAL_COMPREHEND_ACCESS_KEY_ID,
-	AWS_MEDICAL_COMPREHEND_SECRET_ACCESS_KEY,
-	AWS_BEDROCK_REGION,
-	AWS_BEDROCK_ACCESS_KEY_ID,
-	AWS_BEDROCK_SECRET_ACCESS_KEY
-} from '$env/static/private';
+import { serverEnv } from '../config/env.server.js';
+
+// Access configuration through centralized config
+const region = serverEnv.aws.medicalComprehend.region;
+const accessKeyId =
+	serverEnv.aws.medicalComprehend.accessKeyId || serverEnv.aws.bedrock.accessKeyId;
 ```
 
 ### Environment File Setup
 
 ```env
-# Primary Medical Comprehend credentials
-AWS_MEDICAL_COMPREHEND_REGION=us-east-1
-AWS_MEDICAL_COMPREHEND_ACCESS_KEY_ID=your_key
-AWS_MEDICAL_COMPREHEND_SECRET_ACCESS_KEY=your_secret
+# Primary Medical Comprehend credentials (optional)
+COMPREHEND_REGION=us-east-1
+COMPREHEND_ACCESS_KEY_ID=your_key
+COMPREHEND_SECRET_ACCESS_KEY=your_secret
 
-# Fallback to Bedrock credentials if Medical Comprehend not set
-AWS_BEDROCK_REGION=us-east-1
-AWS_BEDROCK_ACCESS_KEY_ID=your_key
-AWS_BEDROCK_SECRET_ACCESS_KEY=your_secret
+# Bedrock credentials (will be used as fallback for Medical Comprehend)
+BEDROCK_REGION=us-east-1
+BEDROCK_ACCESS_KEY_ID=your_key
+BEDROCK_SECRET_ACCESS_KEY=your_secret
 ```
 
 ## Error Handling

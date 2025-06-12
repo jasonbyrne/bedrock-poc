@@ -5,34 +5,7 @@
 
 import { ComprehendMedicalClient, InferRxNormCommand } from '@aws-sdk/client-comprehendmedical';
 import type { InferRxNormCommandInput, RxNormEntity } from '@aws-sdk/client-comprehendmedical';
-import {
-	AWS_MEDICAL_COMPREHEND_REGION,
-	AWS_MEDICAL_COMPREHEND_ACCESS_KEY_ID,
-	AWS_MEDICAL_COMPREHEND_SECRET_ACCESS_KEY,
-	AWS_BEDROCK_REGION,
-	AWS_BEDROCK_ACCESS_KEY_ID,
-	AWS_BEDROCK_SECRET_ACCESS_KEY
-} from '$env/static/private';
-
-// Use dedicated Medical Comprehend credentials first, fall back to Bedrock credentials
-const AWS_REGION = AWS_MEDICAL_COMPREHEND_REGION || AWS_BEDROCK_REGION || 'us-east-1';
-const AWS_ACCESS_KEY_ID = AWS_MEDICAL_COMPREHEND_ACCESS_KEY_ID || AWS_BEDROCK_ACCESS_KEY_ID || '';
-const AWS_SECRET_ACCESS_KEY =
-	AWS_MEDICAL_COMPREHEND_SECRET_ACCESS_KEY || AWS_BEDROCK_SECRET_ACCESS_KEY || '';
-
-// Debug logging for credential configuration
-const hasBedrockCreds = !!(AWS_BEDROCK_ACCESS_KEY_ID && AWS_BEDROCK_SECRET_ACCESS_KEY);
-const hasMedicalCreds = !!(
-	AWS_MEDICAL_COMPREHEND_ACCESS_KEY_ID && AWS_MEDICAL_COMPREHEND_SECRET_ACCESS_KEY
-);
-const credentialSource = hasMedicalCreds
-	? 'Medical Comprehend'
-	: hasBedrockCreds
-		? 'Bedrock (fallback)'
-		: 'None';
-
-console.log(`[DEBUG] Medical Comprehend credential source: ${credentialSource}`);
-console.log(`[DEBUG] Region: ${AWS_REGION}`);
+import { serverEnv } from '../config/env.server.js';
 
 // Simple logger fallback
 const consoleLogger = {
@@ -153,31 +126,64 @@ export interface DrugEntityExtractionResult {
 }
 
 export class MedicalComprehendService {
+	private static instance: MedicalComprehendService;
 	private client: ComprehendMedicalClient;
 
-	constructor() {
+	private constructor() {
+		// Use dedicated Medical Comprehend credentials first, fall back to Bedrock credentials
+		const accessKeyId =
+			serverEnv.aws.medicalComprehend.accessKeyId || serverEnv.aws.bedrock.accessKeyId;
+		const secretAccessKey =
+			serverEnv.aws.medicalComprehend.secretAccessKey || serverEnv.aws.bedrock.secretAccessKey;
+		const region = serverEnv.aws.medicalComprehend.region;
+
+		// Determine credential source for debugging
+		const hasMedicalCreds = !!(
+			serverEnv.aws.medicalComprehend.accessKeyId && serverEnv.aws.medicalComprehend.secretAccessKey
+		);
+		const hasBedrockCreds = !!(
+			serverEnv.aws.bedrock.accessKeyId && serverEnv.aws.bedrock.secretAccessKey
+		);
+		const credentialSource = hasMedicalCreds
+			? 'Medical Comprehend'
+			: hasBedrockCreds
+				? 'Bedrock (fallback)'
+				: 'None';
+
 		// Validate credentials
-		if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY) {
-			throw new Error('AWS credentials not configured for Medical Comprehend service');
+		if (!accessKeyId || !secretAccessKey) {
+			throw new Error(
+				'AWS credentials not configured for Medical Comprehend service. Set COMPREHEND_ACCESS_KEY_ID/COMPREHEND_SECRET_ACCESS_KEY or BEDROCK_ACCESS_KEY_ID/BEDROCK_SECRET_ACCESS_KEY'
+			);
 		}
 
 		// Log credential configuration for debugging
 		console.log(
 			`[DEBUG] Medical Comprehend initialization - Credential source: ${credentialSource}`
 		);
-		console.log(`[DEBUG] Using region: ${AWS_REGION}`);
-		console.log(`[DEBUG] Access Key ID: ${AWS_ACCESS_KEY_ID.substring(0, 8)}...`);
+		console.log(`[DEBUG] Using region: ${region}`);
+		console.log(`[DEBUG] Access Key ID: ${accessKeyId.substring(0, 8)}...`);
 
 		this.client = new ComprehendMedicalClient({
-			region: AWS_REGION,
+			region,
 			credentials: {
-				accessKeyId: AWS_ACCESS_KEY_ID,
-				secretAccessKey: AWS_SECRET_ACCESS_KEY
+				accessKeyId,
+				secretAccessKey
 			},
-			maxAttempts: 3
+			maxAttempts: serverEnv.aws.bedrock.rateLimiting.maxRetryAttempts
 		});
 
 		console.log('[DEBUG] Medical Comprehend client initialized successfully');
+	}
+
+	/**
+	 * Get the singleton instance of MedicalComprehendService.
+	 */
+	public static getInstance(): MedicalComprehendService {
+		if (!MedicalComprehendService.instance) {
+			MedicalComprehendService.instance = new MedicalComprehendService();
+		}
+		return MedicalComprehendService.instance;
 	}
 
 	/**
@@ -437,4 +443,10 @@ export class MedicalComprehendService {
 	}
 }
 
-export const medicalComprehendService = new MedicalComprehendService();
+export const medicalComprehendService = {
+	getInstance: () => MedicalComprehendService.getInstance(),
+	extractDrugInformation: (text: string) =>
+		MedicalComprehendService.getInstance().extractDrugInformation(text),
+	extractMedicalEntities: (text: string) =>
+		MedicalComprehendService.getInstance().extractMedicalEntities(text)
+};

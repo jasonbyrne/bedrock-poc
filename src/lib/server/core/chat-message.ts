@@ -1,5 +1,7 @@
 import { nanoid } from 'nanoid';
 
+export type MessageRole = 'user' | 'assistant';
+
 export interface MessageMetadata {
 	intent?: string;
 	slots?: Record<string, unknown>;
@@ -12,7 +14,7 @@ export interface MessageMetadata {
 export class ChatMessage {
 	public id: string;
 	public content: string;
-	public role: 'user' | 'assistant';
+	public role: MessageRole;
 	public timestamp: Date;
 	public is_typing?: boolean;
 	public metadata?: MessageMetadata;
@@ -20,7 +22,7 @@ export class ChatMessage {
 	public error?: string;
 
 	constructor(
-		role: 'user' | 'assistant',
+		role: MessageRole,
 		content: string,
 		options: {
 			id?: string;

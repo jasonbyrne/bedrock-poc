@@ -1,22 +1,28 @@
 // Client-side environment variables (exposed to the browser)
-// These are prefixed with PUBLIC_ in .env
+// These are prefixed with PUBLIC_ in .env and imported via SvelteKit's secure system
 
-// Importing from $env/dynamic/public works at runtime, but not during build
-// So we'll use import.meta.env for static analysis
+import {
+	PUBLIC_APP_NAME,
+	PUBLIC_APP_VERSION,
+	PUBLIC_DEBUG_MODE,
+	PUBLIC_API_BASE_URL,
+	PUBLIC_MAX_MESSAGE_LENGTH,
+	PUBLIC_TYPING_DELAY_MS
+} from '$env/static/public';
 
 // Public app configuration
 export const publicEnv = {
 	app: {
-		name: import.meta.env.PUBLIC_APP_NAME || 'AI Drug Search POC',
-		version: import.meta.env.PUBLIC_APP_VERSION || '1.0.0',
-		debug: import.meta.env.PUBLIC_DEBUG_MODE === 'true'
+		name: PUBLIC_APP_NAME || 'AI Drug Search POC',
+		version: PUBLIC_APP_VERSION || '1.0.0',
+		debug: PUBLIC_DEBUG_MODE === 'true'
 	},
 	api: {
-		baseUrl: import.meta.env.PUBLIC_API_BASE_URL || 'http://localhost:5173/api'
+		baseUrl: PUBLIC_API_BASE_URL || 'http://localhost:5173/api'
 	},
 	ui: {
-		maxMessageLength: parseInt(import.meta.env.PUBLIC_MAX_MESSAGE_LENGTH || '500', 10),
-		typingDelayMs: parseInt(import.meta.env.PUBLIC_TYPING_DELAY_MS || '1000', 10)
+		maxMessageLength: parseInt(PUBLIC_MAX_MESSAGE_LENGTH || '500', 10),
+		typingDelayMs: parseInt(PUBLIC_TYPING_DELAY_MS || '1000', 10)
 	}
 } as const;
 
