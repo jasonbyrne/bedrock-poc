@@ -171,7 +171,8 @@ You are a helpful and knowledgeable Medicare chatbot. Respond to the user as a f
 		prompt += `\n\nContext: ${context}`;
 	}
 
-	prompt += `\n\nGuidelines:
+	prompt += `\n
+Guidelines:
 - Keep answers accurate, concise, and easy to understand
 - If you do not know the answer, say so honestly
 - Focus on Medicare-related information and guidance
@@ -187,20 +188,27 @@ RESPONSE FORMAT REQUIREMENTS:
 	return prompt;
 }
 
-// Legacy exports for backward compatibility
-export const INTENT_DETECTION_PROMPT = createIntentDetectionPrompt();
-
-export const RESPONSE_GENERATION_PROMPT = createGeneralResponsePrompt();
-
-// Legacy function - maintained for backward compatibility
-export const NEED_MORE_INFO_PROMPT = (
+/**
+ * Create a general response with a definitive answer.
+ * We provide the answer, which may be a string or a JSON object.
+ * And then we will prompt the LLM to format the response in a human-readable way
+ * with the appropriate formatting for the response type and context of the
+ * previous messages.
+ */
+export function createAnswerPrompt(
 	topic: string,
-	providedSlots: string[],
-	missingSlots: string[]
-) =>
-	createMissingInformationPrompt({
-		intent: 'unknown',
-		topic,
-		providedSlots,
-		missingSlots
-	});
+	answer: string | Record<string, unknown>
+): string {
+	const strAnswer = typeof answer === 'string' ? answer : JSON.stringify(answer);
+	return `
+You are a helpful and knowledgeable Medicare chatbot. Respond to the user as a friendly healthcare assistant.
+You will be provided with an answer, which may be a string or a JSON object.
+You will need to format the response in a human-readable way with the appropriate formatting for the response 
+type and context of the previous messages.
+
+The user is asking about: ${topic}.
+
+Answer: 
+${strAnswer}
+	`;
+}

@@ -8,7 +8,8 @@ import {
 	createIntentDetectionPrompt,
 	createFallbackPrompt,
 	createClarificationPrompt,
-	createMissingInformationPrompt
+	createMissingInformationPrompt,
+	createAnswerPrompt
 } from '../systemPrompts';
 
 // Simple logger fallback
@@ -73,6 +74,12 @@ export interface ClarificationMessageArgs {
 	suspectedIntent: string;
 	confidence: number;
 	extractedSlots?: Record<string, unknown>;
+}
+
+export interface AnswerMessageArgs {
+	session: ChatSession;
+	topic: string;
+	answer: string | Record<string, unknown>;
 }
 
 /**
@@ -257,6 +264,28 @@ export class BedrockService {
 			},
 			{
 				temperature: 0.15, // Low for consistent information requests
+				maxTokens: 700, // Space for detailed explanations
+				isStructured: false // Natural conversational response
+			}
+		);
+	}
+
+	public async generateAnswerMessage(args: AnswerMessageArgs): Promise<BedrockResponse> {
+		const { session, topic, answer } = args;
+
+		const contextMessages = session.getLastNMessages(serverEnv.aws.bedrock.messageContextWindow);
+		const previousMessages = this.prepareMessagesForClaude(contextMessages);
+
+		const systemPrompt = createAnswerPrompt(topic, answer);
+
+		return this.generateResponseWithOptions(
+			{
+				systemPrompt,
+				previousMessages,
+				userInput: session.userMessage
+			},
+			{
+				temperature: 0.1, // Low for consistent information requests
 				maxTokens: 700, // Space for detailed explanations
 				isStructured: false // Natural conversational response
 			}
@@ -515,5 +544,7 @@ export const bedrockService = {
 	generateClarificationMessage: (args: ClarificationMessageArgs) =>
 		BedrockService.getInstance().generateClarificationMessage(args),
 	generateMissingInformationMessage: (args: MissingInformationArgs) =>
-		BedrockService.getInstance().generateMissingInformationMessage(args)
+		BedrockService.getInstance().generateMissingInformationMessage(args),
+	generateAnswerMessage: (args: AnswerMessageArgs) =>
+		BedrockService.getInstance().generateAnswerMessage(args)
 };
