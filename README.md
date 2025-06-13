@@ -4,7 +4,7 @@ A proof-of-concept application demonstrating intent recognition and slot filling
 
 > **Note**: This is a standalone POC that will be migrated into the main Medicare codebase once the initial phase is complete. The goal is to validate the approach and patterns before integration.
 
-## �� Project Overview
+## Project Overview
 
 This POC focuses on:
 
