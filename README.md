@@ -76,11 +76,11 @@ src/
 │   └── utils/         # Utility functions
 ├── routes/            # SvelteKit routes
 │   ├── api/          # API endpoints
-│   ├── +layout.svelte # Root layout
-│   ├── +page.svelte  # Main application page with login
 │   ├── chat/         # Chat view
 │   ├── feed/         # Feed view
-│   └── search/       # Search view
+│   ├── search/       # Search view
+│   ├── +layout.svelte # Root layout
+│   └── +page.svelte  # Main application page with login
 ├── static/           # Static assets
 └── app.html         # Main HTML template
 
