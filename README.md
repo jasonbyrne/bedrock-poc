@@ -34,7 +34,7 @@ This POC focuses on:
 - Copy `env.example` to `.env`:
 
 ```bash
-cp .env.example .env
+cp env.example .env
 ```
 
 - Configure your environment variables:
@@ -59,14 +59,31 @@ npm run dev
 src/
 ├── lib/
 │   ├── components/     # Svelte components (PascalCase)
+│   │   ├── chat/      # Chat-specific components
+│   │   ├── common/    # Shared UI components
+│   │   └── layout/    # Layout components
+│   ├── config/        # Application configuration
+│   ├── data/          # Mock data and personas
 │   ├── server/        # Backend logic
 │   │   ├── controllers/  # Intent controllers
 │   │   ├── services/    # External service integrations
-│   │   └── core/       # Core functionality
+│   │   ├── intents/     # Intent definitions and prompts
+│   │   ├── core/       # Core functionality
+│   │   └── prompts/    # System and intent prompts
+│   ├── services/      # Client-side services
+│   ├── stores/        # Svelte stores
 │   ├── types/         # TypeScript types
 │   └── utils/         # Utility functions
 ├── routes/            # SvelteKit routes
-└── app.html          # Main HTML template
+│   ├── api/          # API endpoints
+│   └── +page.svelte  # Main application page
+├── static/           # Static assets
+└── app.html         # Main HTML template
+
+docs/                # Project documentation
+├── CODE-CONVENTIONS.md
+├── PROJECT-PLAN.md
+└── ENVIRONMENT-VARIABLES.md
 ```
 
 ## 💻 Development
