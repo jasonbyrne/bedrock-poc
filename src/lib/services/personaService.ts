@@ -1,12 +1,12 @@
 import type { PersonaOption, AuthJwtPayload } from '$lib/types/authTypes.js';
-import { STATIC_PERSONAS } from '$lib/data/personas';
+import personas from '$lib/data/personas';
 import type { MedicareBeneficiary } from '$lib/types/persona';
 
 /**
  * Get all personas formatted for dropdown options
  */
 export function getPersonaOptions(): PersonaOption[] {
-	return STATIC_PERSONAS.map((persona) => {
+	return personas.map((persona) => {
 		const age = new Date().getFullYear() - new Date(persona.birthDate).getFullYear();
 		return {
 			value: persona.beneficiaryKey,
@@ -20,7 +20,7 @@ export function getPersonaOptions(): PersonaOption[] {
  * Find a persona by beneficiary key
  */
 export function findPersonaByKey(beneficiaryKey: number): MedicareBeneficiary | undefined {
-	return STATIC_PERSONAS.find((persona) => persona.beneficiaryKey === beneficiaryKey);
+	return personas.find((persona) => persona.beneficiaryKey === beneficiaryKey);
 }
 
 /**

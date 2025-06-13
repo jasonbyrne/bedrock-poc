@@ -7,6 +7,7 @@ import {
 import type { Medication } from '$lib/types/persona';
 import { bedrockService } from '$lib/server/services/bedrockService';
 import { backfillObject } from '$lib/utils/objectMerge';
+import mctService from '../services/mctService';
 
 export class GetSingleDrugPriceController extends Controller {
 	protected minConfidence = 0.8;
@@ -176,28 +177,37 @@ export class GetSingleDrugPriceController extends Controller {
 			return await this.generateNeedMoreInfoResponse();
 		}
 		// Generate comprehensive response with RxNorm data
-		return this.generateComprehensiveResponse(drugInfo);
+		return this.generateAnswer(drugInfo);
 	}
 
-	private async generateComprehensiveResponse(
-		drugInfo: DrugEntityExtractionResult
-	): Promise<MessageReply> {
-		const answer = {
+	private async generateAnswer(drugInfo: DrugEntityExtractionResult): Promise<MessageReply> {
+		const perDoseCost = await mctService.getDrugPricePerDose(
+			drugInfo.drugName || '',
+			drugInfo.dosage || ''
+		);
+		const answer: Record<string, unknown> = {
 			'Drug Name': drugInfo.drugName,
-			'Normalized Drug Name': drugInfo.normalizedDrugName,
-			'Per Dose Cost': 2.5,
+			'Per Dose Cost': perDoseCost,
 			'Length of Supply': drugInfo.duration,
 			'Taken Via/Route': drugInfo.route,
 			'Frequency Taken': drugInfo.frequency,
 			'Drug Form': drugInfo.drugForm
 		};
 
+		// If we normalized the drug name, include the normalized name in the answer
+		if (
+			drugInfo.normalizedDrugName &&
+			drugInfo.normalizedDrugName.toLowerCase() !== drugInfo.drugName?.toLowerCase()
+		) {
+			answer['Normalized Drug Name'] = drugInfo.normalizedDrugName;
+		}
+
 		const response = await bedrockService.generateAnswerMessage(this.session, {
 			topic: 'drug price',
 			answer,
 			additionalPrompts: [
 				'You MUST include the drug name, cost per dose, length of supply, and the total cost for the length of the supply.',
-				'If the drug name was normalized, tell the user that we made the change so there is no confusion.'
+				'If we have a "Normalized Drug Name" property, tell the user that we changed their input to match the drug name in our system. They should ensure that the drug name is correct.'
 			]
 		});
 

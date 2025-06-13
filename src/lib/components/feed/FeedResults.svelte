@@ -58,7 +58,6 @@
 							{#if entry.metadata.intent}
 								<span class="metadata-separator">•</span>
 								<span class="metadata-item intent-badge">
-									<span class="intent-label">Intent:</span>
 									{entry.metadata.intent}
 									{#if entry.metadata.confidence_score !== undefined}
 										<span class="confidence-score">
@@ -71,7 +70,6 @@
 							{#if entry.metadata.session_context && Object.keys(entry.metadata.session_context).length > 0}
 								<span class="metadata-separator">•</span>
 								<span class="metadata-item context-info">
-									<span class="context-label">Context:</span>
 									{Object.keys(entry.metadata.session_context).join(', ')}
 								</span>
 							{/if}
@@ -348,12 +346,6 @@
 		.metadata-item {
 			gap: m.space(0.25);
 			white-space: nowrap;
-		}
-
-		// Hide labels on mobile to save space
-		.intent-label,
-		.context-label {
-			display: none;
 		}
 
 		// Hide less important metadata on mobile
