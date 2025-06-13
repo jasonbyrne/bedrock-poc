@@ -29,10 +29,10 @@ export class GetSingleDrugPriceController extends Controller {
 
 	/**
 	 * Find the drug in the user's beneficiary medications.
-	 * @param drugName - The name of the drug to find.
+	 * @param drugNames - Array of drug names to search for (including alternatives).
 	 * @returns The medication if found, otherwise null.
 	 */
-	private findDrugInBeneficiaryMedications(drugName: string): Medication | null {
+	private findDrugInBeneficiaryMedications(drugNames: string[]): Medication | null {
 		const medications = this.user.medications ?? [];
 
 		// Return null if no medications on file
@@ -40,10 +40,16 @@ export class GetSingleDrugPriceController extends Controller {
 
 		// Normalize to lowercase and remove any non-alphanumeric characters
 		const normalize = (name: string) => name.toLowerCase().replace(/[^a-z0-9]/g, '');
-		const normalizedDrugName = normalize(drugName);
-		const foundMedication = medications.find(
-			(medication) => normalize(medication.drugName) === normalizedDrugName
-		);
+
+		// Normalize all drug names
+		const normalizedDrugNames = drugNames.map(normalize);
+
+		// Find the first medication that matches any of the normalized drug names
+		const foundMedication = medications.find((medication) => {
+			const normalizedMedicationName = normalize(medication.drugName);
+			return normalizedDrugNames.some((name) => name === normalizedMedicationName);
+		});
+
 		console.log('[DEBUG] Found medication:', foundMedication);
 		return foundMedication ?? null;
 	}
@@ -56,8 +62,14 @@ export class GetSingleDrugPriceController extends Controller {
 	 * @returns The backfilled drug info.
 	 */
 	private backfillMedicationInfo(drugInfo: DrugEntityExtractionResult): DrugEntityExtractionResult {
-		const drugName = drugInfo.normalizedDrugName || drugInfo.drugName || '';
-		const beneficiaryMedication = this.findDrugInBeneficiaryMedications(drugName);
+		// Create array of drug names to search for, including alternatives
+		const drugNames = [
+			drugInfo.drugName || '',
+			drugInfo.normalizedDrugName || '',
+			...(drugInfo.alternativeDrugs?.map((alt) => alt.name) || [])
+		].filter(Boolean); // Remove empty strings
+
+		const beneficiaryMedication = this.findDrugInBeneficiaryMedications(drugNames);
 		const defaultValues = {
 			duration: 'monthly'
 		};
@@ -184,7 +196,8 @@ export class GetSingleDrugPriceController extends Controller {
 			topic: 'drug price',
 			answer,
 			additionalPrompts: [
-				`Include the cost per dose, length of supply, and the total cost for the duration of the supply.`
+				'You MUST include the drug name, cost per dose, length of supply, and the total cost for the length of the supply.',
+				'If the drug name was normalized, tell the user that we made the change so there is no confusion.'
 			]
 		});
 
