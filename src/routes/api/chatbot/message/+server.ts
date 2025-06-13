@@ -6,7 +6,7 @@ import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import type { ApiError } from '$lib/types/chatTypes.js';
 import { getIntentByName } from '$lib/server/intents';
-import type { IntentHandlerParams } from '$lib/types/intentTypes';
+import type { IntentHandlerParams } from '$lib/types/intent.types';
 import { routeIntent } from '$lib/server/router';
 import {
 	requireAuth,

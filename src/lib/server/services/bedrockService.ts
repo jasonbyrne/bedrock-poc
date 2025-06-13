@@ -10,9 +10,10 @@ import {
 	createClarificationPrompt,
 	createMissingInformationPrompt,
 	createAnswerPrompt
-} from '../systemPrompts';
+} from '../prompts';
 import type { LlmResponse } from '$lib/types/llmResponse';
 import { getSuggestions } from '../intents';
+import type { ChatMessage } from '../core/chat-message';
 
 // Simple logger fallback
 const consoleLogger = {
@@ -99,7 +100,7 @@ export class BedrockService {
 			return null;
 		}
 
-		const systemPrompt = createIntentDetectionPrompt();
+		const systemPrompt = createIntentDetectionPrompt(session.userMessage);
 		const bedrockResult = await this.generateResponseWithOptions(
 			{
 				session,
@@ -130,7 +131,7 @@ export class BedrockService {
 		}
 	): Promise<LlmResponse> {
 		const systemPrompt = createFallbackPrompt({
-			originalMessage: session.userMessage,
+			userMessage: session.userMessage,
 			suggestedActions: opts?.suggestedActions.length ? opts.suggestedActions : getSuggestions()
 		});
 
@@ -194,7 +195,6 @@ export class BedrockService {
 		const { topic, providedSlots, missingSlots } = args;
 
 		const systemPrompt = createMissingInformationPrompt({
-			intent: session.intentName,
 			topic,
 			providedSlots,
 			missingSlots
@@ -431,34 +431,21 @@ export class BedrockService {
 	}
 
 	/**
-	 * Convert chat session messages to the format expected by Claude model.
-	 * Ensures strict role alternation required by Claude 3 API.
-	 * Optionally adds a new user input message.
+	 * Prepare messages for Claude, ensuring proper formatting and context.
+	 * Messages must alternate between user and assistant roles.
+	 * Consecutive messages of the same role are concatenated.
 	 */
-	private prepareMessagesForClaude(
-		messages: Array<{ role: string; content: string }>,
-		newUserInput?: string
-	): BedrockMessage[] {
-		// Filter to only user and assistant messages
-		const validMessages = messages
-			.filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-			.map((msg) => ({
-				role: msg.role as 'user' | 'assistant',
-				content: msg.content
-			}));
-
-		// Add new user input if provided
-		if (newUserInput) {
-			validMessages.push({
-				role: 'user',
-				content: newUserInput
-			});
-		}
+	private prepareMessagesForClaude(messages: ChatMessage[]): BedrockMessage[] {
+		// Map to BedrockMessage format first
+		const bedrockMessages = messages.map((msg) => ({
+			role: msg.role as 'user' | 'assistant',
+			content: msg.content
+		}));
 
 		// Ensure strict role alternation by concatenating consecutive messages of the same role
 		const alternatingMessages: BedrockMessage[] = [];
 
-		for (const msg of validMessages) {
+		for (const msg of bedrockMessages) {
 			const lastMessage = alternatingMessages[alternatingMessages.length - 1];
 
 			if (!lastMessage || lastMessage.role !== msg.role) {

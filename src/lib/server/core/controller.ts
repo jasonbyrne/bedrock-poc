@@ -1,4 +1,4 @@
-import type { IntentHandlerParams } from '$lib/types/intentTypes';
+import type { IntentHandlerParams } from '$lib/types/intent.types';
 import type { MessageReply } from '$lib/types/message-reply';
 import type { ChatSession } from '$lib/server/core/chat-session';
 import type { AuthJwtPayload } from '$lib/types/authTypes';

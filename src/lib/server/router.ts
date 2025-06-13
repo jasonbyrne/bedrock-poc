@@ -1,5 +1,5 @@
 // Central router for intent controllers
-import type { IntentHandlerParams, IntentHandlerResult } from '$lib/types/intentTypes';
+import type { IntentHandlerParams, IntentHandlerResult } from '$lib/types/intent.types';
 import { WelcomeController } from './controllers/WelcomeController';
 import { UnknownController } from './controllers/UnknownController';
 import { GetSingleDrugPriceController } from './controllers/GetSingleDrugPriceController';

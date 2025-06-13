@@ -1,7 +1,7 @@
 import { nanoid } from 'nanoid';
 import { ChatMessage, type MessageRole } from './chat-message';
 import { getIntentByName } from '../intents';
-import type { Intent } from '$lib/types/intentTypes';
+import type { Intent } from '$lib/types/intent.types';
 import type { AuthJwtPayload } from '$lib/types/authTypes';
 
 function generateSessionId(): string {
