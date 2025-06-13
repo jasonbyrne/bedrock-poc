@@ -218,16 +218,19 @@ export class BedrockService {
 		args: {
 			topic: string;
 			answer: string | Record<string, unknown>;
+			additionalPrompts?: string[];
 		}
 	): Promise<LlmResponse> {
-		const { topic, answer } = args;
+		const { topic, answer, additionalPrompts } = args;
 
 		const systemPrompt = createAnswerPrompt(topic, answer);
 
 		return this.generateResponseWithOptions(
 			{
 				session,
-				systemPrompt
+				systemPrompt: additionalPrompts
+					? `${systemPrompt}\n\n${additionalPrompts.join('\n')}`
+					: systemPrompt
 			},
 			{
 				temperature: 0.1, // Low for consistent information requests

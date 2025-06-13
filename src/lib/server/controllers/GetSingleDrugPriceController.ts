@@ -167,99 +167,26 @@ export class GetSingleDrugPriceController extends Controller {
 		return this.generateComprehensiveResponse(drugInfo);
 	}
 
-	private generateComprehensiveResponse(drugInfo: DrugEntityExtractionResult): MessageReply {
-		const {
-			drugName,
-			normalizedDrugName,
-			rxNormCode,
-			drugType,
-			dosage,
-			drugForm,
-			route,
-			frequency,
-			duration,
-			strength,
-			alternativeDrugs,
-			metadata
-		} = drugInfo;
+	private async generateComprehensiveResponse(
+		drugInfo: DrugEntityExtractionResult
+	): Promise<MessageReply> {
+		const answer = {
+			'Drug Name': drugInfo.drugName,
+			'Normalized Drug Name': drugInfo.normalizedDrugName,
+			'Per Dose Cost': 2.5,
+			'Length of Supply': drugInfo.duration,
+			'Taken Via/Route': drugInfo.route,
+			'Frequency Taken': drugInfo.frequency,
+			'Drug Form': drugInfo.drugForm
+		};
 
-		// Start with main drug information
-		const displayName = normalizedDrugName || drugName || 'Unknown Drug';
-		let response = `🔍 **Drug Information for ${displayName}**\n\n`;
-
-		// Add RxNorm normalization info if available
-		if (metadata.hasRxNormData) {
-			response += `📋 **RxNorm Details:**\n`;
-			if (rxNormCode) response += `- RxNorm Code: ${rxNormCode}\n`;
-			if (drugType) response += `- Type: ${drugType.replace('_', ' ')}\n`;
-			response += `- Confidence: ${Math.round(metadata.confidence * 100)}%\n\n`;
-		}
-
-		// Add extracted drug characteristics
-		const characteristics: string[] = [];
-		if (dosage) characteristics.push(`Dosage: ${dosage}`);
-		if (strength && strength !== dosage) characteristics.push(`Strength: ${strength}`);
-		if (drugForm) characteristics.push(`Form: ${drugForm}`);
-		if (route) characteristics.push(`Route: ${route}`);
-		if (frequency) characteristics.push(`Frequency: ${frequency}`);
-		if (duration) characteristics.push(`Duration: ${duration}`);
-
-		if (characteristics.length > 0) {
-			response += `💊 **Drug Characteristics:**\n`;
-			characteristics.forEach((char) => (response += `- ${char}\n`));
-			response += '\n';
-		}
-
-		// Add placeholder pricing information
-		response += `💰 **Pricing Information (Placeholder)**\n`;
-
-		// Generate realistic pricing based on drug type
-		const isGeneric = drugType === 'GENERIC_NAME';
-		const genericPrice = Math.round(Math.random() * 50 + 10); // $10-60
-		const brandPrice = Math.round(genericPrice * (2.5 + Math.random() * 2)); // 2.5-4.5x generic
-
-		if (isGeneric) {
-			response += `- Generic ${displayName}: $${genericPrice}.00/month\n`;
-		} else {
-			response += `- Brand ${displayName}: $${brandPrice}.00/month\n`;
-			response += `- Generic equivalent: $${genericPrice}.00/month\n`;
-		}
-
-		response += '\n';
-
-		// Add alternative/related drugs if available
-		if (metadata.hasAlternatives && alternativeDrugs.length > 0) {
-			response += `🔄 **Alternative Options:**\n`;
-
-			// Show top 3 alternatives
-			const topAlternatives = alternativeDrugs.slice(0, 3);
-			topAlternatives.forEach((alt: { name: string; rxNormCode: string; confidence: number }) => {
-				const altPrice = Math.round(Math.random() * 40 + 15); // $15-55
-				const confidence = Math.round(alt.confidence * 100);
-				response += `- ${alt.name} (RxNorm: ${alt.rxNormCode}): ~$${altPrice}.00/month (${confidence}% match)\n`;
-			});
-
-			if (alternativeDrugs.length > 3) {
-				response += `- ...and ${alternativeDrugs.length - 3} more alternatives\n`;
-			}
-			response += '\n';
-		}
-
-		// Add Medicare-specific information
-		response += `🏥 **Medicare Coverage Notes:**\n`;
-		response += `- Most Medicare Part D plans cover this medication\n`;
-		response += `- Your actual cost depends on your specific plan and tier placement\n`;
-		response += `- Consider discussing generic alternatives with your doctor\n\n`;
-
-		// Add processing metadata
-		if (metadata.latency) {
-			response += `⚙️ *Processed in ${metadata.latency}ms with ${metadata.entityCount} entities extracted*\n`;
-		}
-
-		// Add normalization note if applicable
-		if (normalizedDrugName && normalizedDrugName !== drugName) {
-			response += `\n*Note: I normalized "${drugName}" to "${normalizedDrugName}" using RxNorm for accurate pricing.*`;
-		}
+		const response = await bedrockService.generateAnswerMessage(this.session, {
+			topic: 'drug price',
+			answer,
+			additionalPrompts: [
+				`Include the cost per dose, length of supply, and the total cost for the duration of the supply.`
+			]
+		});
 
 		return this.reply(response);
 	}
