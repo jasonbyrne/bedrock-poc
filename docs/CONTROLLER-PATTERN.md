@@ -6,7 +6,7 @@ The Medicare Chatbot uses a controller-based architecture to handle user intents
 
 ## Folder Structure
 
-```
+```text
 src/lib/server/
 ├── controllers/           # Intent-specific controllers
 │   ├── WelcomeController.ts
@@ -31,7 +31,8 @@ Each intent has a dedicated controller class that handles the specific logic for
 
 ### Router
 
-The router maps intent names to their corresponding controllers and handles the flow of:  
+The router maps intent names to their corresponding controllers and handles the flow of:
+
 1. Receiving the detected intent
 2. Routing to the appropriate controller
 3. Processing the controller's response

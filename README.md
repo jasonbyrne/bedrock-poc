@@ -1,220 +1,153 @@
-# Medicare Chatbot POC - AWS Bedrock Integration
+# Medicare Chatbot POC
 
-A **Proof of Concept** application demonstrating intent recognition and slot filling capabilities for a Medicare beneficiary chatbot using **AWS Bedrock (Claude 3 Haiku)** and **AWS Medical Comprehend**.
+A proof-of-concept application demonstrating intent recognition and slot filling capabilities for a Medicare chatbot using AWS Bedrock (Claude 3 Haiku) and AWS Comprehend Medical.
 
-## 🚨 **Important: This project uses Svelte 5, not Svelte 4!**
+> **Note**: This is a standalone POC that will be migrated into the main Medicare codebase once the initial phase is complete. The goal is to validate the approach and patterns before integration.
 
-## 📚 Documentation
+## �� Project Overview
 
-**REQUIRED READING** - Please review these documents before contributing:
+This POC focuses on:
 
-- **[📋 Project Plan](docs/PROJECT-PLAN.md)** - Complete project overview, goals, and architecture
-- **[⚙️ Code Conventions](docs/CODE-CONVENTIONS.md)** - Svelte 5 patterns, TypeScript standards, and naming conventions
-- **[🔧 Environment Setup](.env.example)** - Environment variable configuration
+- Intent recognition and slot filling using AWS Bedrock
+- Medical entity extraction with AWS Comprehend Medical
+- Conversation management with in-memory storage
+- Mock data integration for drug pricing and beneficiary information
+- Strict adherence to provided data (zero hallucination tolerance)
 
-## 🚀 Quick Start
+### Key Features
+
+- Natural-feeling conversational handling of incomplete information
+- Proactive redirection for out-of-scope queries
+- Factual accuracy and prevention of hallucinations
+- Appropriate language use for Medicare context
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
-- Node.js 18+
-- npm or pnpm
-- AWS Account (for Bedrock/Comprehend access)
+- Node.js 20.x or later
+- AWS CLI configured with appropriate credentials
+- Access to AWS Bedrock and AWS Comprehend Medical
 
-### Setup
+### Environment Setup
 
-1. **Clone and install dependencies:**
-
-   ```bash
-   git clone <repository-url>
-   cd max-be-chatbot-bedrock-poc
-   npm install
-   ```
-
-2. **Configure environment variables:**
-
-   ```bash
-   cp .env.example .env
-   # Edit .env with your AWS credentials and configuration
-   ```
-
-3. **Start development server:**
-
-   ```bash
-   npm run dev
-   ```
-
-4. **Run tests:**
-   ```bash
-   npm run test
-   ```
-
-## 🏗️ Tech Stack
-
-- **Frontend**: Svelte 5 + SvelteKit
-- **Language**: TypeScript (strict mode)
-- **Testing**: Vitest + jsdom
-- **Build Tool**: Vite
-- **AI/ML**: AWS Bedrock (Claude 3 Haiku) + AWS Medical Comprehend
-- **State Management**: Svelte 5 runes (`$state`, `$derived`, `$effect`)
-
-## 📁 Project Structure
-
-```
-src/
-├── lib/
-│   ├── components/          # Reusable Svelte components (PascalCase)
-│   ├── services/           # Business logic services (camelCase)
-│   ├── types/              # TypeScript type definitions (camelCase)
-│   ├── utils/              # Utility functions (camelCase)
-│   └── server/             # Server-only code
-├── routes/
-│   ├── api/                # API endpoints (+server.ts files)
-│   └── +page.svelte        # Application pages
-docs/                       # Project documentation
-```
-
-## ✅ Current Implementation Status
-
-### Completed Features
-
-- ✅ **Project Setup**: SvelteKit with TypeScript and Vite configuration
-- ✅ **Code Standards**: Comprehensive code conventions and documentation
-- ✅ **Authentication System**: Mock JWT-based auth with 5 detailed Medicare personas
-- ✅ **UI Components**: Modular Svelte 5 components with proper TypeScript interfaces
-- ✅ **Modern Styling**: Beautiful Tailwind CSS design with gradients, animations, and responsive layout
-- ✅ **Chat Interface**: Professional chat UI with avatars, typing indicators, and smooth animations
-- ✅ **Data Layer**: Type-safe persona service with realistic Medicare beneficiary data
-- ✅ **State Management**: Svelte stores with localStorage persistence and proper error handling
-- ✅ **Routing**: Login/chat page routing with authentication guards
-- ✅ **Mock Intent Recognition**: Simulated AI responses for drug pricing, plan info, and provider search
-- ✅ **AWS Bedrock Integration**: Claude 3 Haiku for intent recognition
-- ✅ **Conversation Logic**: Slot filling and follow-up questions
-
-### Next Steps (To Be Implemented)
-
-- 🔄 **Medical Comprehend**: Drug and medical term extraction
-- 🔄 **Lex Alternative**: Explore Lex as a feature flagged alternative for intent mapping
-- 🔄 **API Layer**: Backend services for AI interactions
-
-## 🎯 Core Features (POC Scope)
-
-- **Intent Recognition**: Identify user intentions from natural language
-- **Slot Filling**: Extract relevant information (drug names, dosages, etc.)
-- **Conversational Flow**: Handle incomplete information with follow-up questions
-- **Medical NER**: Use AWS Medical Comprehend for drug/medical term extraction
-- **Mock Data Integration**: Simulate backend API responses
-- **Zero Hallucination**: Strict adherence to provided data only
-
-## 🎨 UI Features
-
-### 🚀 **Modern Design System**
-
-- **Gradient Backgrounds**: Beautiful blue-to-indigo gradients
-- **Glass Morphism**: Subtle shadows and border effects
-- **Responsive Layout**: Works perfectly on mobile, tablet, and desktop
-- **Smooth Animations**: Fade-in effects, typing indicators, and loading states
-
-### 💬 **Professional Chat Interface**
-
-- **Avatar System**: Distinct user and assistant avatars with icons
-- **Message Bubbles**: Rounded chat bubbles with proper spacing
-- **Typing Indicators**: Animated dots showing assistant activity
-- **Intent Recognition**: Visual badges showing detected intents and confidence scores
-- **Error Handling**: User-friendly error messages with icons
-
-### 🔐 **Enhanced Authentication**
-
-- **Persona Cards**: Rich Medicare beneficiary profiles with detailed information
-- **Visual Feedback**: Loading spinners, success indicators, and error states
-- **Demo Mode Badges**: Clear indicators that this is a demonstration
-
-## 🛠️ Available Commands
+- Copy `env.example` to `.env`:
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run test         # Run all tests
-npm run test:watch   # Run tests in watch mode
-npm run lint         # Check code quality
-npm run format       # Format code with Prettier
-npm run check        # Type check with svelte-check
+cp .env.example .env
 ```
 
-## 🧪 Testing Strategy
+- Configure your environment variables:
+  - `BEDROCK_REGION`: AWS region for Bedrock
+  - `BEDROCK_MODEL_ID`: Claude 3 Haiku model ID
+  - `PUBLIC_APP_NAME`: Application name
+  - Add other required variables from `.env.example`
 
-- **Unit Tests**: Vitest for service/utility functions
-- **Component Tests**: Testing Library + Vitest for Svelte components
-- **Integration Tests**: API endpoint testing
-- **Type Safety**: TypeScript strict mode + svelte-check
+### Installation
 
-## 🔧 Development Guidelines
+```bash
+# Install dependencies
+npm install
 
-### Svelte 5 Runes (NOT Svelte 4!)
-
-```typescript
-// ✅ Correct (Svelte 5)
-let count = $state(0);
-let doubled = $derived(count * 2);
-let { title }: Props = $props();
-
-// ❌ Wrong (Svelte 4 - DO NOT USE)
-let count = 0;
-$: doubled = count * 2;
-export let title;
+# Start development server
+npm run dev
 ```
 
-### TypeScript Standards
+## 🏗️ Project Structure
 
-- **NO** `any` types - use proper interfaces or `unknown`
-- **ALWAYS** type function parameters and returns
-- Use Result pattern for error handling
-- Follow naming conventions in [Code Conventions](docs/CODE-CONVENTIONS.md)
+```text
+src/
+├── lib/
+│   ├── components/     # Svelte components (PascalCase)
+│   ├── server/        # Backend logic
+│   │   ├── controllers/  # Intent controllers
+│   │   ├── services/    # External service integrations
+│   │   └── core/       # Core functionality
+│   ├── types/         # TypeScript types
+│   └── utils/         # Utility functions
+├── routes/            # SvelteKit routes
+└── app.html          # Main HTML template
+```
 
-### Environment Variables
+## 💻 Development
 
-- **Server-side**: `BEDROCK_REGION`, `DATABASE_URL`
-- **Client-side**: `PUBLIC_APP_NAME`, `PUBLIC_API_BASE_URL` (PUBLIC\_ prefix required)
+### Code Conventions
 
-## 🤖 AI Development Support
+- Follow Svelte 5 syntax (see `docs/CODE-CONVENTIONS.md`)
+- Use TypeScript with strict typing
+- Follow naming conventions in documentation
+- No use of `any` type - use proper types or `unknown`
 
-This project includes rules files for AI coding assistants:
+### Key Files
 
-- **Cursor**: `.cursorrules`
-- **WindSurf**: `.windsurfrules`
+- `src/lib/server/controllers/`: Intent-specific controllers
+- `src/lib/server/services/`: External service integrations
+- `src/lib/types/`: TypeScript interfaces and types
+- `src/routes/api/`: API endpoints
 
-These files ensure AI assistants follow our Svelte 5 patterns and coding standards.
+### Testing
 
-## 🔒 Security Notes
+```bash
+# Run tests
+npm run test
 
-- **Environment Variables**: Server-side secrets in `.env` (gitignored)
-- **Client Variables**: Only `PUBLIC_*` variables are exposed to browser
-- **AWS Credentials**: Never commit to version control
-- **Mock Data**: This POC uses simulated data only
+# Run tests in watch mode
+npm run test:watch
+```
 
-## 📊 Success Metrics (POC)
+## 🔄 Development Workflow
 
-- Intent Recognition: >95% accuracy
-- Slot Filling: >90% accuracy
-- Zero hallucination tolerance
-- Response time: <5 seconds end-to-end
-- TypeScript: 100% type coverage
+1. **Environment Setup**
 
-## 🚫 Out of Scope (POC)
+   - Ensure AWS credentials are configured
+   - Set up environment variables
+   - Install dependencies
 
-- Production deployment
-- Real AWS infrastructure setup
-- Live backend integrations
-- User authentication
-- Data persistence beyond session memory
+2. **Local Development**
 
-## 📖 Learn More
+   - Run `npm run dev` for local development
+   - Access the application at `http://localhost:5173`
+   - Use the chat interface to test intents
 
-- [Svelte 5 Documentation](https://svelte.dev/docs/svelte/overview)
-- [SvelteKit Documentation](https://svelte.dev/docs/kit)
-- [AWS Bedrock Documentation](https://docs.aws.amazon.com/bedrock/)
-- [AWS Medical Comprehend](https://docs.aws.amazon.com/comprehend-medical/)
+3. **Adding New Intents**
 
----
+   - Create a new intent file in `src/lib/server/intents/`
+   - Export the intent in `src/lib/server/intents/index.ts` (barrel file)
+   - Create a new controller in `src/lib/server/controllers/`
+   - Add the controller to the router in `src/lib/server/router.ts`
+   - Add tests for the new intent
 
-**Note**: This is a local development POC focused on exploring AWS Bedrock capabilities with modern web technologies. The application demonstrates best practices for AI integration while maintaining strict code quality standards.
+4. **Testing**
+   - Write unit tests for new functionality
+   - Test intent recognition and slot filling
+   - Verify conversation flow
+   - Check error handling
+
+## 📚 Documentation
+
+- `docs/PROJECT-PLAN.md`: Project goals and architecture
+- `docs/CODE-CONVENTIONS.md`: Coding standards and conventions
+- `docs/ENVIRONMENT-VARIABLES.md`: Environment variable documentation
+
+## 🔜 Next Steps
+
+See `docs/PROJECT-PLAN.md` for upcoming features and improvements, including:
+
+- MCT and BEDAP API integration
+- Session storage with ElastiCache
+- Query caching
+- Kinesis Data Streams for logging
+- Feature flagging system
+- AWS Secrets Manager integration
+
+## 🤝 Contributing
+
+1. Follow the code conventions in `docs/CODE-CONVENTIONS.md`
+2. Write tests for new functionality
+3. Update documentation as needed
+4. Use TypeScript and proper typing
+5. Follow Svelte 5 syntax guidelines
+
+## 📝 License
+
+This project is for internal POC purposes only.

@@ -9,6 +9,8 @@ This document outlines the coding standards and conventions for the Medicare Cha
 - **Styling**: CSS/SASS with custom theme system
 - **Testing**: Vitest
 - **Build Tool**: Vite
+- **AI Services**: AWS Bedrock (Claude 3 Haiku), Medical Comprehend, Lex
+- **External APIs**: MCT (stubbed for now)
 
 ## 🚨 Critical: Svelte 5 Syntax Only
 
@@ -192,8 +194,13 @@ The project uses a controller pattern for handling chatbot intents. Each intent 
 ```
 src/lib/server/
 ├── controllers/           # Intent-specific controllers
+├── services/             # External service integrations
+│   ├── bedrockService.ts # AWS Bedrock integration
+│   ├── lexService.ts     # AWS Lex integration
+│   ├── mctService.ts     # MCT API integration (stubbed)
+│   └── medicalComprehendService.ts # Medical entity extraction
 ├── core/
-│   └── controller.ts      # Abstract Controller class
+│   └── controller.ts     # Abstract Controller class
 └── router.ts             # Maps intents to controllers
 ```
 
@@ -202,8 +209,36 @@ src/lib/server/
 - Each intent has a dedicated controller class
 - The router maps intent names to their corresponding controllers
 - Controllers handle intent-specific logic and responses
+- Services handle external API integrations
 
-See `docs/CONTROLLER-PATTERN.md` for more information.
+### Service Pattern
+
+Services follow a consistent pattern for external API integration:
+
+```typescript
+// Example: mctService.ts
+export function getDrugPricePerDose(drugName: string, dosage: string): number {
+	// Log for debugging
+	console.log('[DEBUG] Getting drug price per dose for:', drugName, dosage);
+
+	// TODO: Replace with real MCT API call
+	const minPrice = 0.5;
+	const maxPrice = 10.0;
+	return Number((Math.random() * (maxPrice - minPrice) + minPrice).toFixed(2));
+}
+```
+
+#### Service Conventions
+
+1. **Function Naming**: Use clear, descriptive names that indicate the action
+2. **Type Safety**: Always use TypeScript types for parameters and return values
+3. **Error Handling**: Include proper error handling and logging
+4. **Debugging**: Add debug logging for important operations
+5. **Documentation**: Include JSDoc comments for public functions
+6. **Stubbing**: When stubbing external services:
+   - Use realistic data ranges
+   - Add TODO comments for future implementation
+   - Include debug logging
 
 ## 🚀 API Endpoints
 
