@@ -10,30 +10,30 @@ import {
 	type RecognizeTextCommandOutput
 } from '@aws-sdk/client-lex-runtime-v2';
 import {
-	AWS_LEX_REGION,
-	AWS_LEX_ACCESS_KEY_ID,
-	AWS_LEX_SECRET_ACCESS_KEY,
-	AWS_LEX_BOT_ID,
-	AWS_LEX_BOT_ALIAS_ID,
-	AWS_LEX_LOCALE_ID,
-	AWS_BEDROCK_REGION,
-	AWS_BEDROCK_ACCESS_KEY_ID,
-	AWS_BEDROCK_SECRET_ACCESS_KEY
+	LEX_REGION,
+	LEX_ACCESS_KEY_ID,
+	LEX_SECRET_ACCESS_KEY,
+	LEX_BOT_ID,
+	LEX_BOT_ALIAS_ID,
+	LEX_LOCALE_ID,
+	BEDROCK_REGION,
+	BEDROCK_ACCESS_KEY_ID,
+	BEDROCK_SECRET_ACCESS_KEY
 } from '$env/static/private';
 
 // Use dedicated Lex credentials first, fall back to Bedrock credentials
-const AWS_REGION = AWS_LEX_REGION || AWS_BEDROCK_REGION || 'us-east-1';
-const AWS_ACCESS_KEY_ID = AWS_LEX_ACCESS_KEY_ID || AWS_BEDROCK_ACCESS_KEY_ID || '';
-const AWS_SECRET_ACCESS_KEY = AWS_LEX_SECRET_ACCESS_KEY || AWS_BEDROCK_SECRET_ACCESS_KEY || '';
+const AWS_REGION = LEX_REGION || BEDROCK_REGION || 'us-east-1';
+const AWS_ACCESS_KEY_ID = LEX_ACCESS_KEY_ID || BEDROCK_ACCESS_KEY_ID || '';
+const AWS_SECRET_ACCESS_KEY = LEX_SECRET_ACCESS_KEY || BEDROCK_SECRET_ACCESS_KEY || '';
 
 // Lex-specific configuration
-const BOT_ID = AWS_LEX_BOT_ID || '';
-const BOT_ALIAS_ID = AWS_LEX_BOT_ALIAS_ID || 'TSTALIASID'; // Default test alias
-const LOCALE_ID = AWS_LEX_LOCALE_ID || 'en_US';
+const BOT_ID = LEX_BOT_ID || '';
+const BOT_ALIAS_ID = LEX_BOT_ALIAS_ID || 'TSTALIASID'; // Default test alias
+const LOCALE_ID = LEX_LOCALE_ID || 'en_US';
 
 // Debug logging for credential configuration
-const hasBedrockCreds = !!(AWS_BEDROCK_ACCESS_KEY_ID && AWS_BEDROCK_SECRET_ACCESS_KEY);
-const hasLexCreds = !!(AWS_LEX_ACCESS_KEY_ID && AWS_LEX_SECRET_ACCESS_KEY);
+const hasBedrockCreds = !!(BEDROCK_ACCESS_KEY_ID && BEDROCK_SECRET_ACCESS_KEY);
+const hasLexCreds = !!(LEX_ACCESS_KEY_ID && LEX_SECRET_ACCESS_KEY);
 const credentialSource = hasLexCreds ? 'Lex' : hasBedrockCreds ? 'Bedrock (fallback)' : 'None';
 
 console.log(`[DEBUG] Lex service credential source: ${credentialSource}`);

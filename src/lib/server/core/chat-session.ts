@@ -8,6 +8,9 @@ function generateSessionId(): string {
 	return nanoid(16);
 }
 
+// In-memory storage for chat sessions
+const sessions = new Map<string, ChatSession>();
+
 export class ChatSession {
 	sessionId: string;
 	beneficiaryKey: number;
@@ -42,11 +45,11 @@ export class ChatSession {
 	/**
 	 * Get the last user message
 	 */
-	public get userMessage(): string {
+	public get lastUserMessage(): string {
 		return this.getLastMessage('user')?.content ?? '';
 	}
 
-	private addMessage(message: ChatMessage): void {
+	protected addMessage(message: ChatMessage): void {
 		this.messages.push(message);
 		this.lastActivity = new Date();
 	}
@@ -192,3 +195,22 @@ export class ChatSession {
 		return timeSinceActivity > timeoutMs;
 	}
 }
+
+export async function createChatSession(message: string): Promise<ChatSession> {
+	const session = new ChatSession(0); // Default beneficiary key
+	session.addUserMessage(message);
+	return session;
+}
+
+export async function getChatSession(sessionId: string): Promise<ChatSession | null> {
+	return sessions.get(sessionId) || null;
+}
+
+export async function updateChatSession(sessionId: string, message: string): Promise<void> {
+	const session = await getChatSession(sessionId);
+	if (session) {
+		session.addUserMessage(message);
+	}
+}
+
+export default ChatSession;

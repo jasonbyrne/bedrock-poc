@@ -95,12 +95,13 @@ export class BedrockService {
 	 */
 	public async detectIntent(session: ChatSession): Promise<IntentDetectionResult | null> {
 		// Get the current user message (the last message which was just added)
-		if (!session.userMessage) {
+		const lastUserMessage = session.lastUserMessage;
+		if (!lastUserMessage) {
 			consoleLogger.error('No user message found in session');
 			return null;
 		}
 
-		const systemPrompt = createIntentDetectionPrompt(session.userMessage);
+		const systemPrompt = createIntentDetectionPrompt(lastUserMessage);
 		const bedrockResult = await this.generateResponseWithOptions(
 			{
 				session,
@@ -130,8 +131,9 @@ export class BedrockService {
 			suggestedActions: string[];
 		}
 	): Promise<LlmResponse> {
+		const lastUserMessage = session.lastUserMessage;
 		const systemPrompt = createFallbackPrompt({
-			userMessage: session.userMessage,
+			userMessage: lastUserMessage,
 			suggestedActions: opts?.suggestedActions.length ? opts.suggestedActions : getSuggestions()
 		});
 
@@ -160,12 +162,13 @@ export class BedrockService {
 		}
 	): Promise<LlmResponse> {
 		const { suspectedIntent, confidence, extractedSlots = {} } = args;
+		const lastUserMessage = session.lastUserMessage;
 
 		const systemPrompt = createClarificationPrompt({
 			suspectedIntent,
 			confidence,
 			extractedSlots,
-			originalMessage: session.userMessage
+			originalMessage: lastUserMessage
 		});
 
 		return this.generateResponseWithOptions(

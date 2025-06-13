@@ -96,7 +96,7 @@ export class GetSingleDrugPriceController extends Controller {
 			.join('\n');
 		return await medicalComprehendService.extractDrugInformation(`
 			Data: ${slots}
-			User Asked:  ${this.session.userMessage || ''}
+			User Asked:  ${this.session.lastUserMessage || ''}
 		`);
 	}
 
@@ -114,7 +114,7 @@ export class GetSingleDrugPriceController extends Controller {
 			console.log('[INFO] Continuing with available drug information');
 		}
 		console.log('[DEBUG] Medical Comprehend extraction results:', {
-			originalInput: this.session.userMessage || '',
+			originalInput: this.session.lastUserMessage || '',
 			extractedDrugName: drugInfo.drugName,
 			normalizedDrugName: drugInfo.normalizedDrugName,
 			rxNormCode: drugInfo.rxNormCode,

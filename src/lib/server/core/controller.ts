@@ -45,8 +45,9 @@ abstract class Controller {
 	 * @returns The message reply.
 	 */
 	protected reply(
-		payload: string | LlmResponse | (Record<string, unknown> & { message: string })
+		payload: string | string[] | LlmResponse | (Record<string, unknown> & { message: string })
 	): MessageReply {
+		// If the payload is an LLM response, return the content
 		if (isLlmResponse(payload)) {
 			if (payload.error) {
 				console.error('[ERROR] LLM Error:', payload.error);
@@ -55,11 +56,19 @@ abstract class Controller {
 				message: payload.content
 			};
 		}
+		// If the payload is a string, return the string
 		if (typeof payload === 'string') {
 			return {
 				message: payload
 			};
 		}
+		// If it's an array of strings, return it as a string with newlines
+		if (Array.isArray(payload)) {
+			return {
+				message: payload.join('\n')
+			};
+		}
+		// If it's an object with a message property, return the message
 		return {
 			message: payload.message
 		};

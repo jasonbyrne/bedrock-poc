@@ -5,13 +5,18 @@
 
 	interface Props {
 		isOpen?: boolean;
+		onContinue?: () => void;
 	}
 
-	let { isOpen = false }: Props = $props();
+	let { isOpen = false, onContinue }: Props = $props();
 
 	const redirect = () => {
 		clearAuth();
-		goto('/');
+		if (onContinue) {
+			onContinue();
+		} else {
+			goto('/');
+		}
 		isOpen = false;
 	};
 </script>

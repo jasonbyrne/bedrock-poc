@@ -201,7 +201,10 @@
 	}
 
 	.response-content {
-		// Clean, borderless styling
+		padding: 1rem;
+		background: var(--bg-secondary);
+		border-radius: 0.5rem;
+		margin-top: 0.5rem;
 	}
 
 	.response-text {
